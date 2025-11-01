@@ -1,0 +1,57 @@
+{
+  "info": {
+    "name": "Spam Detector Base API (Mock)",
+    "_postman_id": "b2e5f4f3-9cbe-4f4a-9a3a-21b9f7f0a111",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health"
+      }
+    },
+    {
+      "name": "Predict",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"text\": \"Win a FREE iPhone! Click http://x\"}"
+        },
+        "url": "{{base_url}}/predict"
+      }
+    },
+    {
+      "name": "Predict Batch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"items\": [\"Win FREE $$$ now!!\", \"Hi team, see you at 10am.\"]}"
+        },
+        "url": "{{base_url}}/predict-batch"
+      }
+    },
+    {
+      "name": "Model Info",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/model/info"
+      }
+    }
+  ]
+}
