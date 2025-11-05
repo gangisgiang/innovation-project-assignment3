@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from ..schemas.request import PredictIn
 from ..schemas.response import PredictOut
 from ..services.predict_service import predict_one
@@ -7,4 +7,11 @@ router = APIRouter()
 
 @router.post("/predict", response_model=PredictOut)
 def predict(req: PredictIn):
-    return predict_one(req.text)
+    try:
+        result = predict_one(req.text)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prediction failed: {str(e)}"
+        )
