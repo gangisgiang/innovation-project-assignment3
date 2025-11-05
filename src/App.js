@@ -1,87 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
-  AppBar, Toolbar, Typography, Container, Grid, Card, CardContent, Button, Box,
-  Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, TextField,
-  Switch, Snackbar, Alert, Fab, Dialog, DialogTitle, DialogContent, DialogContentText,
-  DialogActions, CircularProgress, LinearProgress, Chip, Avatar, Divider
+  Typography, Container, Button, Box, TextField, CircularProgress, Chip
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  Home as HomeIcon,
-  Info as InfoIcon,
-  Mail as MailIcon,
-  Add as AddIcon,
-} from '@mui/icons-material';
-import Interface from './Interface';
+import Plot from 'react-plotly.js';
+
+import { ThemeContext } from './background';
 
 function App() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [splitVisible, setSplitVisible] = useState(false);
   const [apiInput, setApiInput] = useState('');
   const [apiResult, setApiResult] = useState(null);
   const [apiLoading, setApiLoading] = useState(false);
 
-  const toggleDrawer = (open) => (event) => {
-    if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
-      return;
-    }
-    setDrawerOpen(open);
-  };
+  const { darkMode, colors } = useContext(ThemeContext);
 
-  const handleDarkModeToggle = () => {
-    setDarkMode(!darkMode);
-    setSnackbarOpen(true);
-  };
+  const hamColor = 'rgb(75, 192, 75)';
+  const spamColor = 'rgb(255, 99, 99)';
 
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbarOpen(false);
-  };
-
-  const handleDialogOpen = () => {
-    setDialogOpen(true);
-  };
-
-  const handleDialogClose = () => {
-    setDialogOpen(false);
-  };
-
-  const handleSubmit = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      handleDialogClose();
-      setSnackbarOpen(true);
-    }, 2000);
-  };
-
-  const drawerContent = (
-    <Box sx={{ width: 250 }} role="presentation" onClick={toggleDrawer(false)} onKeyDown={toggleDrawer(false)}>
-      <List>
-        {['Home', 'About', 'Contact'].map((text, index) => (
-          <ListItem button key={text}>
-            <ListItemIcon>
-              {index === 0 ? <HomeIcon /> : index === 1 ? <InfoIcon /> : <MailIcon />}
-            </ListItemIcon>
-            <ListItemText primary={text} />
-          </ListItem>
-        ))}
-      </List>
-      <Divider />
-      <List>
-        <ListItem>
-          <ListItemText primary="Dark Mode" />
-          <Switch checked={darkMode} onChange={handleDarkModeToggle} />
-        </ListItem>
-      </List>
-    </Box>
-  );
+  
 
   const MainHeadings = () => (
     <Container component="main" sx={{ mt: 0, mb: 2, p: 0 }}>
@@ -95,23 +31,7 @@ function App() {
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: darkMode ? 'grey.900' : 'background.default', color: darkMode ? 'common.white' : 'common.black' }}>
-      <AppBar position="static">
-        <Toolbar>
-          <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleDrawer(true)}>
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            COS30049 - Assignment 3
-          </Typography>
-          <Button color="inherit" onClick={handleDialogOpen}>Contact</Button>
-        </Toolbar>
-      </AppBar>
-
-      <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
-        {drawerContent}
-      </Drawer>
-
+    <>
       <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 0, mb: 2, px: 2 }}>
         <MainHeadings />
       </Box>
@@ -124,16 +44,32 @@ function App() {
             </Box>
 
             <Typography variant="body2" sx={{ mt: 1 }}>Enter the text of your email in the field below.</Typography>
-            <TextField
-              label="Email text"
-              placeholder="Paste email body here"
-              multiline
-              minRows={4}
-              fullWidth
-              value={apiInput}
-              onChange={(e) => setApiInput(e.target.value)}
-              sx={{ mt: 1 }}
-            />
+              <TextField
+                label="Email text"
+                placeholder="Paste email body here"
+                multiline
+                minRows={4}
+                fullWidth
+                value={apiInput}
+                onChange={(e) => setApiInput(e.target.value)}
+                sx={{ 
+                  mt: 1,
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: darkMode ? 'rgba(255, 255, 255, 0.23)' : 'rgba(0, 0, 0, 0.23)',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: darkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    color: darkMode ? 'white' : 'black',
+                  },
+                }}
+              />
 
             <Box sx={{ display: 'block', mt: 1 }}>
               <Button
@@ -194,6 +130,74 @@ function App() {
                   {apiResult.reasons.length > 0 && (
                     <Typography><strong>Reasons:</strong> {apiResult.reasons.join(', ')}</Typography>
                   )}
+                  {apiResult.ensemble && (
+                    <Box sx={{ mt: 2, mb: 2 }}>
+                      <Typography><strong>Model Scores:</strong></Typography>
+                      <Plot
+                        data={[
+                          {
+                            type: 'bar',
+                            x: Object.keys(apiResult.ensemble),
+                            y: Object.values(apiResult.ensemble).map(m => m.score),
+                            marker: {
+                              color: Object.values(apiResult.ensemble).map(m => 
+                                m.label === 'ham' ? hamColor : spamColor
+                              )
+                            }
+                          }
+                        ]}
+                        layout={{
+                            width: 400,
+                            height: 300,
+                            title: {
+                              text: 'Model Scores',
+                              font: {
+                                color: colors.textColor
+                              }
+                            },
+                            paper_bgcolor: colors.paper_bgcolor,
+                            font: { color: colors.textColor },
+                            legend: { font: { color: colors.textColor } },
+                            hoverlabel: { font: { color: colors.textColor }, bgcolor: colors.paper_bgcolor, bordercolor: colors.textColor },
+                            yaxis: {
+                              range: [0, 1],
+                              dtick: 0.1,
+                              title: {
+                                text: 'Score',
+                                font: {
+                                  color: colors.textColor
+                                }
+                              },
+                              tickfont: {
+                                color: colors.textColor
+                              },
+                              gridcolor: colors.gridColor
+                            },
+                            xaxis: {
+                              title: {
+                                text: 'Model',
+                                font: {
+                                color: colors.textColor
+                                }
+                              },
+                              tickfont: {
+                                color: colors.textColor
+                              }
+                            },
+                            margin: {
+                              l: 50,
+                              r: 50,
+                              t: 50,
+                              b: 50
+                            }
+                        }}
+                        config={{
+                          displayModeBar: false,
+                          responsive: true
+                        }}
+                      />
+                    </Box>
+                  )}
                   {apiResult.explain && apiResult.explain.length > 0 && (
                     <>
                       <Typography><strong>Key Terms:</strong></Typography>
@@ -216,45 +220,7 @@ function App() {
           </Box>
         </Box>
       </Box>
-
-      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
-        <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
-          {darkMode ? 'Dark mode enabled!' : 'Light mode enabled!'}
-        </Alert>
-      </Snackbar>
-
-      <Dialog open={dialogOpen} onClose={handleDialogClose}>
-        <DialogTitle>Contact Us</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Fill out this form to get in touch with us.
-          </DialogContentText>
-          <TextField
-            autoFocus
-            margin="dense"
-            id="name"
-            label="Your Name"
-            type="text"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            id="email"
-            label="Email Address"
-            type="email"
-            fullWidth
-            variant="standard"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? <CircularProgress size={24} /> : 'Submit'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+    </>
   );
 }
 
