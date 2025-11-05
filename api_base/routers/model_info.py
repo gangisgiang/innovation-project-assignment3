@@ -6,6 +6,11 @@ router = APIRouter()
 
 @router.get("/model/info", response_model=ModelInfoOut)
 def model_info():
+    """
+    Get information about loaded models.
+    
+    Returns model variants, feature counts, classes, and version info.
+    """
     try:
         bundle = get_bundle()
         

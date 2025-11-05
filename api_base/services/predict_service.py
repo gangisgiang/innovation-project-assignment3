@@ -3,6 +3,8 @@ from typing import Dict, List, Tuple
 import numpy as np
 import scipy.sparse as sp
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 from ..loaders.model_loader import get_bundle
 from ..utils.text_clean import clean_text
@@ -190,8 +192,6 @@ def _rf_predict(raw_text: str, clean_text_str: str, bundle) -> Tuple[str, float]
     # Concatenate: TF-IDF (sparse) + extra (dense) = combined
     X_tfidf_dense = X_tfidf.toarray()  # (1, 3000)
     X_combined = np.hstack([X_tfidf_dense, extra_feats])  # (1, 3007)
-    
-    # Note: Scaler is NOT used (causes dimension mismatch)
     
     # Predict
     try:
@@ -406,15 +406,428 @@ def predict_one(text: str) -> Dict:
         "anomaly": anomaly
     }
 
-def predict_batch(items: List[str]) -> List[Dict]:
-    """Predict on multiple texts"""
-    return [predict_one(text) for text in items]
+def predict_batch(items: List[str], max_workers: int = 4) -> List[Dict]:
+    """
+    Predict on multiple texts with parallel processing.
+    
+    Args:
+        items: List of text strings to classify
+        max_workers: Number of parallel workers (default: 4)
+    
+    Returns:
+        List of prediction dictionaries in the same order as input
+    
+    Example:
+        texts = ["FREE MONEY!", "Meeting at 2pm", "URGENT: Verify account"]
+        results = predict_batch(texts)
+        # Returns: [
+        #   {"label": "spam", "score": 0.95, ...},
+        #   {"label": "ham", "score": 0.12, ...},
+        #   {"label": "spam", "score": 0.87, ...}
+        # ]
+    """
+    if not items:
+        return []
+    
+    # For small batches, just use sequential processing
+    if len(items) <= 3:
+        return [predict_one(text) for text in items]
+    
+    # For larger batches, use parallel processing
+    results = [None] * len(items)  # Preserve order
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_index = {
+            executor.submit(predict_one, text): idx 
+            for idx, text in enumerate(items)
+        }
+        
+        # Collect results as they complete
+        for future in as_completed(future_to_index):
+            idx = future_to_index[future]
+            try:
+                results[idx] = future.result()
+            except Exception as e:
+                logger.error(f"Batch prediction failed for item {idx}: {e}")
+                # Return error result for failed item
+                results[idx] = {
+                    "label": "ham",
+                    "score": 0.5,
+                    "action": "quarantine",
+                    "reasons": ["prediction_error"],
+                    "ensemble": {
+                        "rf": {"label": "ham", "score": 0.5},
+                        "xgb": {"label": "ham", "score": 0.5}
+                    },
+                    "explain": [],
+                    "anomaly": {"cluster": "C0", "ood_score": 0.0},
+                    "error": str(e)
+                }
+    
+    return results
+
+
+def predict_batch_with_metadata(items: List[str], max_workers: int = 4) -> Dict:
+    """
+    Predict on multiple texts and return results with metadata.
+    
+    Args:
+        items: List of text strings to classify
+        max_workers: Number of parallel workers
+    
+    Returns:
+        Dict with predictions, summary statistics, and processing info
+    
+    Example:
+        {
+            "predictions": [...],
+            "summary": {
+                "total": 100,
+                "spam": 23,
+                "ham": 77,
+                "avg_score": 0.34,
+                "high_confidence": 89
+            },
+            "processing": {
+                "time_seconds": 1.23,
+                "items_per_second": 81.3
+            }
+        }
+    """
+    start_time = time.time()
+    
+    # Get predictions
+    predictions = predict_batch(items, max_workers=max_workers)
+    
+    # Calculate summary statistics
+    total = len(predictions)
+    spam_count = sum(1 for p in predictions if p["label"] == "spam")
+    ham_count = total - spam_count
+    
+    scores = [p["score"] for p in predictions]
+    avg_score = sum(scores) / total if total > 0 else 0.0
+    
+    # High confidence = score < 0.2 or > 0.8
+    high_confidence = sum(1 for s in scores if s < 0.2 or s > 0.8)
+    
+    # Count actions
+    actions = {}
+    for p in predictions:
+        action = p.get("action", "unknown")
+        actions[action] = actions.get(action, 0) + 1
+    
+    # Processing time
+    elapsed = time.time() - start_time
+    items_per_sec = total / elapsed if elapsed > 0 else 0
+    
+    return {
+        "predictions": predictions,
+        "summary": {
+            "total": total,
+            "spam": spam_count,
+            "ham": ham_count,
+            "spam_percentage": round(spam_count / total * 100, 2) if total > 0 else 0,
+            "avg_score": round(avg_score, 4),
+            "high_confidence": high_confidence,
+            "actions": actions
+        },
+        "processing": {
+            "time_seconds": round(elapsed, 3),
+            "items_per_second": round(items_per_sec, 1),
+            "workers_used": max_workers
+        }
+    }
+
+
+def predict_batch_stream(items: List[str], max_workers: int = 4):
+    """
+    Predict on multiple texts and yield results as they complete (streaming).
+    
+    Useful for processing large batches where you want results as soon as available.
+    
+    Args:
+        items: List of text strings to classify
+        max_workers: Number of parallel workers
+    
+    Yields:
+        (index, prediction_dict) tuples as predictions complete
+    
+    Example:
+        for idx, result in predict_batch_stream(large_text_list):
+            print(f"Item {idx}: {result['label']}")
+            # Process result immediately without waiting for all to finish
+    """
+    if not items:
+        return
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_index = {
+            executor.submit(predict_one, text): idx 
+            for idx, text in enumerate(items)
+        }
+        
+        # Yield results as they complete
+        for future in as_completed(future_to_index):
+            idx = future_to_index[future]
+            try:
+                result = future.result()
+                yield (idx, result)
+            except Exception as e:
+                logger.error(f"Streaming prediction failed for item {idx}: {e}")
+                yield (idx, {
+                    "label": "ham",
+                    "score": 0.5,
+                    "action": "quarantine",
+                    "reasons": ["prediction_error"],
+                    "error": str(e)
+                })
+
+
+def predict_batch_with_indices(
+    items: List[str], 
+    indices: List[int] = None,
+    max_workers: int = 4
+) -> Dict[int, Dict]:
+    """
+    Predict on multiple texts and return as dictionary keyed by index.
+    
+    Useful when you want to map predictions back to original data.
+    
+    Args:
+        items: List of text strings
+        indices: Optional list of indices (defaults to 0, 1, 2, ...)
+        max_workers: Number of parallel workers
+    
+    Returns:
+        Dict mapping index -> prediction
+    
+    Example:
+        # Map predictions back to database IDs
+        texts = ["spam msg", "ham msg"]
+        db_ids = [101, 205]
+        results = predict_batch_with_indices(texts, indices=db_ids)
+        # Returns: {101: {...}, 205: {...}}
+    """
+    if indices is None:
+        indices = list(range(len(items)))
+    
+    if len(indices) != len(items):
+        raise ValueError("Length of indices must match length of items")
+    
+    predictions = predict_batch(items, max_workers=max_workers)
+    
+    return {idx: pred for idx, pred in zip(indices, predictions)}
+
+
+def predict_batch_filtered(
+    items: List[str],
+    filter_label: str = None,
+    min_score: float = None,
+    max_score: float = None,
+    max_workers: int = 4
+) -> List[Tuple[int, Dict]]:
+    """
+    Predict on multiple texts and return only items matching filter criteria.
+    
+    Useful for finding specific types of messages (e.g., high-confidence spam).
+    
+    Args:
+        items: List of text strings
+        filter_label: Only return items with this label ("spam" or "ham")
+        min_score: Only return items with score >= this value
+        max_score: Only return items with score <= this value
+        max_workers: Number of parallel workers
+    
+    Returns:
+        List of (original_index, prediction) tuples that match filters
+    
+    Example:
+        # Find all high-confidence spam
+        high_spam = predict_batch_filtered(
+            texts,
+            filter_label="spam",
+            min_score=0.8
+        )
+        # Returns: [(5, {...}), (12, {...}), ...]
+    """
+    predictions = predict_batch(items, max_workers=max_workers)
+    
+    results = []
+    for idx, pred in enumerate(predictions):
+        # Apply filters
+        if filter_label and pred["label"] != filter_label:
+            continue
+        
+        if min_score is not None and pred["score"] < min_score:
+            continue
+        
+        if max_score is not None and pred["score"] > max_score:
+            continue
+        
+        results.append((idx, pred))
+    
+    return results
+
+def analyze_batch(items: List[str], max_workers: int = 4) -> Dict:
+    predictions = predict_batch(items, max_workers=max_workers)
+    
+    # Score distribution
+    scores = [p["score"] for p in predictions]
+    score_bins = {
+        "0.0-0.2": sum(1 for s in scores if 0.0 <= s < 0.2),
+        "0.2-0.4": sum(1 for s in scores if 0.2 <= s < 0.4),
+        "0.4-0.6": sum(1 for s in scores if 0.4 <= s < 0.6),
+        "0.6-0.8": sum(1 for s in scores if 0.6 <= s < 0.8),
+        "0.8-1.0": sum(1 for s in scores if 0.8 <= s <= 1.0),
+    }
+    
+    # Model agreement
+    agreement = sum(
+        1 for p in predictions 
+        if p["ensemble"]["rf"]["label"] == p["ensemble"]["xgb"]["label"]
+    )
+    disagreement = len(predictions) - agreement
+    
+    # Action distribution
+    actions = {}
+    for p in predictions:
+        action = p["action"]
+        actions[action] = actions.get(action, 0) + 1
+    
+    # Reason analysis
+    reason_counts = {}
+    for p in predictions:
+        for reason in p.get("reasons", []):
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+    
+    # Top spam indicators (from explanations)
+    all_terms = {}
+    for p in predictions:
+        if p["label"] == "spam":
+            for item in p.get("explain", []):
+                term = item["term"]
+                weight = item["weight"]
+                if term not in all_terms:
+                    all_terms[term] = []
+                all_terms[term].append(weight)
+    
+    # Average weight per term
+    top_spam_indicators = [
+        {"term": term, "avg_weight": sum(weights) / len(weights), "count": len(weights)}
+        for term, weights in all_terms.items()
+    ]
+    top_spam_indicators.sort(key=lambda x: x["avg_weight"], reverse=True)
+    
+    return {
+        "overview": {
+            "total_messages": len(items),
+            "spam_count": sum(1 for p in predictions if p["label"] == "spam"),
+            "ham_count": sum(1 for p in predictions if p["label"] == "ham"),
+            "avg_score": round(sum(scores) / len(scores), 4) if scores else 0,
+        },
+        "score_distribution": score_bins,
+        "model_agreement": {
+            "agree": agreement,
+            "disagree": disagreement,
+            "agreement_rate": round(agreement / len(predictions) * 100, 2) if predictions else 0
+        },
+        "actions": actions,
+        "reasons": reason_counts,
+        "top_spam_indicators": top_spam_indicators[:10],
+
+        "details": predictions,
+        "indexed_details": [
+            {"index": i, "text": items[i], **predictions[i]}
+            for i in range(len(items))
+        ]
+    }
+
+
+
+def batch_summary(predictions: List[Dict]) -> str:
+    total = len(predictions)
+    spam = sum(1 for p in predictions if p["label"] == "spam")
+    ham = total - spam
+    
+    avg_score = sum(p["score"] for p in predictions) / total if total > 0 else 0
+    
+    # Action counts
+    block = sum(1 for p in predictions if p["action"] == "block")
+    quarantine = sum(1 for p in predictions if p["action"] == "quarantine")
+    allow = sum(1 for p in predictions if p["action"] == "allow")
+    
+    summary = f"""
+Batch Prediction Summary
+========================
+Total messages: {total}
+Spam: {spam} ({spam/total*100:.1f}%)
+Ham: {ham} ({ham/total*100:.1f}%)
+Average score: {avg_score:.3f}
+
+Recommended actions:
+- Block: {block} messages
+- Quarantine: {quarantine} messages
+- Allow: {allow} messages
+"""
+    return summary.strip()
+
+if __name__ == "__main__":
+    # Example test data
+    test_messages = [
+        "CONGRATULATIONS! You've WON $1000! Click NOW!",
+        "Hi team, meeting at 2pm tomorrow in room B",
+        "URGENT: Your account has been suspended. Verify immediately!",
+        "Thanks for the report. I'll review it this afternoon.",
+        "FREE MONEY!!! Limited time offer!!! ACT NOW!!!",
+        "Can you send me the quarterly numbers?",
+        "You've been selected for a special prize. Call now!",
+        "Reminder: Team lunch on Friday at noon",
+        "WINNER WINNER! Claim your prize today!",
+        "Please update the client spreadsheet when you can"
+    ]
+    
+    print("=" * 80)
+    print("BATCH PREDICTION DEMO")
+    print("=" * 80)
+    
+    # Basic batch prediction
+    print("\n1. Basic batch prediction:")
+    results = predict_batch(test_messages, max_workers=4)
+    for i, result in enumerate(results):
+        print(f"  {i+1}. {result['label'].upper()}: {result['score']:.3f} - {test_messages[i][:40]}...")
+    
+    # Batch with metadata
+    print("\n2. Batch with metadata:")
+    meta_results = predict_batch_with_metadata(test_messages, max_workers=4)
+    print(f"  Processed {meta_results['summary']['total']} messages in {meta_results['processing']['time_seconds']}s")
+    print(f"  Found {meta_results['summary']['spam']} spam ({meta_results['summary']['spam_percentage']}%)")
+    print(f"  Throughput: {meta_results['processing']['items_per_second']} items/sec")
+    
+    # Filtered batch (high-confidence spam only)
+    print("\n3. Filtered batch (spam with score > 0.8):")
+    high_spam = predict_batch_filtered(
+        test_messages,
+        filter_label="spam",
+        min_score=0.8
+    )
+    for idx, pred in high_spam:
+        print(f"  Item {idx}: {pred['score']:.3f} - {test_messages[idx][:40]}...")
+    
+    # Analysis
+    print("\n4. Batch analysis:")
+    analysis = analyze_batch(test_messages, max_workers=4)
+    print(f"  Model agreement rate: {analysis['model_agreement']['agreement_rate']:.1f}%")
+    print(f"  Actions: {analysis['actions']}")
+    
+    # Summary
+    print("\n5. Human-readable summary:")
+    print(batch_summary(results))
+    
+    print("\n" + "=" * 80)
 
 def verify_setup():
-    """
-    Verify that models are receiving the correct number of features.
-    Run this once on startup to confirm everything is configured correctly.
-    """
     bundle = get_bundle()
     test_text = "Test message to verify feature dimensions"
     

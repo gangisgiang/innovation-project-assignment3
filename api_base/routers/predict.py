@@ -7,6 +7,13 @@ router = APIRouter()
 
 @router.post("/predict", response_model=PredictOut)
 def predict(req: PredictIn):
+    """
+    Predict if email text is spam or ham.
+    
+    Uses ensemble of Random Forest and XGBoost models,
+    provides explanations via feature importance,
+    and detects anomalies using K-Means clustering.
+    """
     try:
         result = predict_one(req.text)
         return result
