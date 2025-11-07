@@ -21,9 +21,10 @@ import {
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import { ThemeContext } from './background';
+import { PredictionContext } from './PredictionProvider';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import * as d3 from 'd3';
 
-// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -36,7 +37,8 @@ ChartJS.register(
 );
 
 function PreviousResults() {
-  const { darkMode, colors, predictionHistory } = useContext(ThemeContext);
+  const { darkMode, colors } = useContext(ThemeContext);
+  const { predictionHistory } = useContext(PredictionContext);
   const hasHistory = !!(predictionHistory && predictionHistory.length > 0);
 
   // Prepare data for charts
@@ -161,7 +163,7 @@ function PreviousResults() {
           map.set(term, prev);
         });
       }
-      // Optionally include simple reasons as weight 1 if no explain present
+      // Include simple reasons as weight 1 if no explain present
       if ((!p.explain || p.explain.length === 0) && Array.isArray(p.reasons)) {
         p.reasons.forEach(r => {
           const term = r.replace(/_/g, ' ');
@@ -200,8 +202,8 @@ function PreviousResults() {
         .attr('viewBox', `0 0 ${width} ${height}`)
         .style('background', 'transparent');
 
+      // No data available
       if (!data.children || data.children.length === 0) {
-        // No data
         svg
           .append('text')
           .attr('x', width / 2)
@@ -238,7 +240,6 @@ function PreviousResults() {
             .duration(500)
             .attr('r', d => d.r);
 
-          // Label (term)
           g.append('text')
             .attr('text-anchor', 'middle')
             .attr('dy', '0.3em')
@@ -248,7 +249,6 @@ function PreviousResults() {
             .style('font-size', d => `${Math.min(16, d.r / 3 + 6)}px`)
             .text(d => {
               const term = d.data.term;
-              // Only show if big enough to read
               return term.length > 20 ? term.slice(0, 17) + '…' : term;
             })
             .attr('opacity', d => (d.r > 18 ? 0.9 : 0));
@@ -264,7 +264,6 @@ function PreviousResults() {
           return g;
         });
 
-      // Resize on window change
       const onResize = () => {
         const w = Math.max(280, container.clientWidth);
         svg.attr('width', w);
@@ -359,7 +358,7 @@ function PreviousResults() {
           </Box>
         </Paper>
 
-        {/* D3 Bubble Chart - Reasons from Explain */}
+        {/* D3 Bubble Chart - Reasons from Explain field in API */}
   <Paper sx={{ p: 3, mb: 3, bgcolor: colors.paper_bgcolor }}>
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>
             Reasons Bubble Chart (Explain Aggregation)

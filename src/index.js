@@ -7,6 +7,7 @@ import App from './App';
 import About from './About';
 import PreviousResults from './PreviousResults';
 import Background from './background';
+import { PredictionProvider } from './PredictionProvider';
 
 const theme = createTheme();
 
@@ -17,11 +18,13 @@ root.render(
       <CssBaseline />
       <Router>
         <Background>
-          <Routes>
-            <Route path="/" element={<App />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/previous-results" element={<PreviousResults />} />
-          </Routes>
+          <PredictionProvider>
+            <Routes>
+              <Route path="/" element={<App />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/previous-results" element={<PreviousResults />} />
+            </Routes>
+          </PredictionProvider>
         </Background>
       </Router>
     </ThemeProvider>

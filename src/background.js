@@ -30,8 +30,6 @@ export const ThemeContext = createContext({
   handleDialogOpen: () => {},
   handleDialogClose: () => {},
   handleSubmit: () => {},
-  predictionHistory: [],
-  addPrediction: () => {},
   colors: {
     paper_bgcolor: 'white',
     plot_bgcolor: 'white',
@@ -48,7 +46,6 @@ export default function Background({ children }) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('info');
-  const [predictionHistory, setPredictionHistory] = useState([]);
 
   const toggleDarkMode = () => {
     setDarkMode((d) => {
@@ -80,37 +77,6 @@ export default function Background({ children }) {
     setSnackbarOpen(true);
   };
 
-  const addPrediction = (predictionData) => {
-    const modelScores = {};
-    let totalScore = 0;
-    let modelCount = 0;
-
-    if (predictionData.ensemble) {
-      Object.entries(predictionData.ensemble).forEach(([modelName, modelData]) => {
-        modelScores[modelName] = {
-          score: modelData.score,
-          label: modelData.label
-        };
-        totalScore += modelData.score;
-        modelCount++;
-      });
-    }
-
-    const averageScore = modelCount > 0 ? totalScore / modelCount : predictionData.score || 0;
-
-    const newPrediction = {
-      timestamp: new Date().toISOString(),
-      label: predictionData.label,
-      averageScore: averageScore,
-        text: predictionData.text || '',
-      reasons: Array.isArray(predictionData.reasons) ? predictionData.reasons : [],
-      explain: Array.isArray(predictionData.explain) ? predictionData.explain : [],
-      ...modelScores
-    };
-
-    setPredictionHistory(prev => [...prev, newPrediction]);
-  };
-
   const contextValue = {
     darkMode,
     toggleDarkMode,
@@ -126,8 +92,6 @@ export default function Background({ children }) {
     handleDialogOpen,
     handleDialogClose,
     handleSubmit,
-    predictionHistory,
-    addPrediction,
     colors: {
       paper_bgcolor: darkMode ? theme.palette.grey[900] : theme.palette.background.default,
       textColor: darkMode ? 'rgba(255,255,255,0.87)' : 'rgba(0,0,0,0.87)',
@@ -140,6 +104,7 @@ export default function Background({ children }) {
     }
   };
 
+  // This is the basic outline for the website, every page uses this structure and then has the main part generated separately
   return (
     <ThemeContext.Provider value={contextValue}>
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: darkMode ? 'grey.900' : 'background.default', color: darkMode ? 'common.white' : 'common.black' }}>
@@ -220,6 +185,7 @@ export default function Background({ children }) {
             {snackbarMessage}
           </Alert>
         </Snackbar>
+        {/* This is the contact form, as it is a WIP the submit button is not functional yet it triggers an alert */}
         <Dialog open={dialogOpen} onClose={handleDialogClose}>
           <DialogTitle>Contact Us</DialogTitle>
           <DialogContent>

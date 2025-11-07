@@ -10,7 +10,9 @@ import {
 
 import Plot from 'react-plotly.js';
 import { ThemeContext } from './background';
+import { PredictionContext } from './PredictionProvider';
 
+// Colours for chart
 const hamColor = 'rgba(76,175,80,0.8)'; // green
 const spamColor = 'rgba(244,67,54,0.8)'; // red
 
@@ -35,7 +37,6 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>
-        <MailIcon sx={{ verticalAlign: 'middle', mr: 1, color: colors.textColor }} />
         Analysis Results
       </Typography>
       
@@ -116,7 +117,6 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
                         color={modelData.label === 'spam' ? 'error' : 'success'}
                       />
                     </Box>
-                      {/* Confidence and Weight removed as requested */}
                   </CardContent>
                 </Card>
               </Grid>
@@ -221,6 +221,8 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
   );
 }
 
+{/* Add in SingleAnalysisResults if that API gets built */}
+
 function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
   if (!batchAnalysis || !batchAnalysis.results) return null;
   
@@ -231,7 +233,6 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>
-        <MailIcon sx={{ verticalAlign: 'middle', mr: 1, color: colors.textColor }} />
         Batch Results ({results.length} emails)
       </Typography>
 
@@ -405,7 +406,6 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>
-        <AssessmentIcon sx={{ verticalAlign: 'middle', mr: 1, color: colors.textColor }} />
         Analysis Results
       </Typography>
       
@@ -598,7 +598,38 @@ function App() {
   const [batchInput, setBatchInput] = useState('');
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const [batchLoading, setBatchLoading] = useState(false);
-  const { darkMode, colors, addPrediction } = useContext(ThemeContext);
+  const { darkMode, colors } = useContext(ThemeContext);
+  const { addPrediction } = useContext(PredictionContext);
+
+  const constructPrediction = (predictionData) => {
+    const modelScores = {};
+    let totalScore = 0;
+    let modelCount = 0;
+
+    if (predictionData.ensemble) {
+      Object.entries(predictionData.ensemble).forEach(([modelName, modelData]) => {
+        modelScores[modelName] = {
+          score: modelData.score,
+          label: modelData.label
+        };
+        totalScore += modelData.score;
+        modelCount++;
+      });
+    }
+
+    const averageScore = modelCount > 0 ? totalScore / modelCount : predictionData.score || 0;
+
+    {/* Date for prediction page */}
+    return {
+      timestamp: new Date().toISOString(),
+      label: predictionData.label,
+      averageScore: averageScore,
+      text: predictionData.text || '',
+      reasons: Array.isArray(predictionData.reasons) ? predictionData.reasons : [],
+      explain: Array.isArray(predictionData.explain) ? predictionData.explain : [],
+      ...modelScores
+    };
+  };
 
   const handleBatchAnalyze = async () => {
     setBatchLoading(true);
@@ -620,15 +651,16 @@ function App() {
       if (!data.error) {
         const results = batchAnalyzeMode ? data.indexed_details || [] : data;
         if (Array.isArray(results)) {
-            results.forEach((result, idx) => {
-            addPrediction({
+          results.forEach((result, idx) => {
+            const prediction = constructPrediction({
               label: result.label,
               score: result.score,
-                ensemble: result.ensemble || null,
-                text: result.text || emailTexts[idx] || '', // Use result.text if available, otherwise use original input
-                reasons: Array.isArray(result.reasons) ? result.reasons : [],
-                explain: Array.isArray(result.explain) ? result.explain : [],
+              ensemble: result.ensemble || null,
+              text: result.text || emailTexts[idx] || '',
+              reasons: Array.isArray(result.reasons) ? result.reasons : [],
+              explain: Array.isArray(result.explain) ? result.explain : [],
             });
+            addPrediction(prediction);
           });
         }
       }
@@ -674,7 +706,7 @@ function App() {
                     color="secondary"
                   />
                   <Typography variant="body2" sx={{ color: colors.textColor }}>
-                    {batchAnalyzeMode ? 'Analysis Mode (Detailed)' : 'Basic Mode (Simple List)'}
+                    {batchAnalyzeMode ? 'Analysis Mode' : 'Basic Mode'}
                   </Typography>
                 </Box>
                 <Typography variant="body2" sx={{ mt: 1, color: colors.textColor }}>
@@ -776,7 +808,8 @@ function App() {
                         if (!resp.ok) throw new Error(data.detail || 'Prediction failed');
                         setApiResult(data);
                         if (!data.error) {
-                    addPrediction({ ...data, text: apiInput });
+                          const prediction = constructPrediction({ ...data, text: apiInput });
+                          addPrediction(prediction);
                         }
                       } catch (err) {
                         setApiResult({ error: String(err) });
