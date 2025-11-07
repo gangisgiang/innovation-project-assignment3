@@ -23,20 +23,24 @@ function About() {
           Key Features
         </Typography>
         <Typography variant="body1" paragraph>
-          • Real-time email analysis
-          • Machine learning-based detection
-          • Detailed confidence scores
-          • Multi-model ensemble approach
-          • Explanation of decisions
+            <ul>
+                <li>Real-time email analysis</li>
+                <li>Machine learning-based detection</li>
+                <li>Detailed confidence scores</li>
+                <li>Multi-model ensemble approach</li>
+                <li>Explanation of decisions</li>
+            </ul>
         </Typography>
         <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
           Technology Stack
         </Typography>
         <Typography variant="body1" paragraph>
-          • Frontend: React with Material-UI
-          • Backend: FastAPI
-          • ML Models: rf, xgb
-          • Visualization: Plotly.js
+            <ul>
+                <li>Frontend: React with Material-UI</li>
+                <li>Backend: FastAPI</li>
+                <li>ML Models: rf, xgb</li>
+                <li>Visualization: Plotly.js, Chart.js, D3</li>
+            </ul>
         </Typography>
         <Typography variant="body1" sx={{ mt: 4 }}>
           This project was developed as part of COS30049 - Computing Technology Innovation Project

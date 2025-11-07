@@ -5,6 +5,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 import About from './About';
+import PreviousResults from './PreviousResults';
 import Background from './background';
 
 const theme = createTheme();
@@ -19,6 +20,7 @@ root.render(
           <Routes>
             <Route path="/" element={<App />} />
             <Route path="/about" element={<About />} />
+            <Route path="/previous-results" element={<PreviousResults />} />
           </Routes>
         </Background>
       </Router>
