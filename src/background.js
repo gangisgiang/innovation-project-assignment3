@@ -114,7 +114,7 @@ export default function Background({ children }) {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              COS30049 - Assignment 3
+              SPECTER - Spam and Malware Detection System
             </Typography>
             <Button color="inherit" onClick={handleDialogOpen}>Contact</Button>
           </Toolbar>

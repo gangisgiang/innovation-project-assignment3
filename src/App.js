@@ -1,6 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import {
-  Typography, Container, Button, Box, TextField, CircularProgress, Chip, Switch, Alert, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Divider, Grid, Card, CardContent, LinearProgress
+  Typography, Container, Button, Box, TextField, CircularProgress, Chip, Switch, Alert, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid, Card, CardContent, LinearProgress
 } from '@mui/material';
 
 import {
@@ -32,18 +32,19 @@ function MainHeadings({ batchMode, colors }) {
   );
 }
 
+
 function BasicSingleResults({ apiResult, darkMode, colors }) {
   if (!apiResult || apiResult.error) return null;
-  
+
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>
         Analysis Results
       </Typography>
-      
-      <Card sx={{ 
-        mb: 3, 
-        bgcolor: apiResult.label === 'spam' 
+
+      <Card sx={{
+        mb: 3,
+        bgcolor: apiResult.label === 'spam'
           ? (darkMode ? 'error.dark' : 'error.light')
           : (darkMode ? 'success.dark' : 'success.light'),
         border: 2,
@@ -67,11 +68,11 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
                 <Typography variant="subtitle2" sx={{ color: colors.textSecondary }} gutterBottom>
                   Recommended Action
                 </Typography>
-                <Chip 
+                <Chip
                   label={apiResult.action.toUpperCase()}
                   color={
-                    apiResult.action === 'block' ? 'error' : 
-                    apiResult.action === 'quarantine' ? 'warning' : 
+                    apiResult.action === 'block' ? 'error' :
+                    apiResult.action === 'quarantine' ? 'warning' :
                     'success'
                   }
                   sx={{ fontSize: '1rem', fontWeight: 'bold', px: 2, py: 2.5 }}
@@ -112,7 +113,7 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
                       <Typography variant="h5" sx={{ textTransform: 'capitalize', color: colors.textColor }}>
                         {modelData.label}
                       </Typography>
-                      <Chip 
+                      <Chip
                         label={`${(modelData.score * 100).toFixed(1)}%`}
                         size="small"
                         color={modelData.label === 'spam' ? 'error' : 'success'}
@@ -123,7 +124,7 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
               </Grid>
             ))}
           </Grid>
-          
+
           <Plot
             data={[
               {
@@ -142,36 +143,22 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
             layout={{
               width: window.innerWidth < 768 ? 350 : 500,
               height: 300,
-              title: {
-                text: 'Model Score Comparison',
-                font: { color: colors.textColor }
-              },
+              title: { text: 'Model Score Comparison', font: { color: colors.textColor } },
               paper_bgcolor: colors.paper_bgcolor,
               plot_bgcolor: colors.plot_bgcolor,
               font: { color: colors.textColor },
               yaxis: {
-                range: [0, 1],
-                dtick: 0.1,
-                title: {
-                  text: 'Score',
-                  font: { color: colors.textColor }
-                },
-                tickfont: { color: colors.textColor },
-                gridcolor: colors.gridColor
+                range: [0, 1], dtick: 0.1,
+                title: { text: 'Score', font: { color: colors.textColor } },
+                tickfont: { color: colors.textColor }, gridcolor: colors.gridColor
               },
               xaxis: {
-                title: {
-                  text: 'Model',
-                  font: { color: colors.textColor }
-                },
+                title: { text: 'Model', font: { color: colors.textColor } },
                 tickfont: { color: colors.textColor }
               },
               margin: { l: 50, r: 50, t: 50, b: 50 }
             }}
-            config={{
-              displayModeBar: false,
-              responsive: true
-            }}
+            config={{ displayModeBar: false, responsive: true }}
           />
         </Paper>
       )}
@@ -208,8 +195,8 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
             <Grid item xs={6}>
               <Typography variant="body2" sx={{ color: colors.textSecondary }}>Out-of-Distribution Score</Typography>
               <Typography variant="h5" sx={{ color: colors.textColor }}>{apiResult.anomaly.ood_score.toFixed(3)}</Typography>
-              <LinearProgress 
-                variant="determinate" 
+              <LinearProgress
+                variant="determinate"
                 value={apiResult.anomaly.ood_score * 100}
                 color={apiResult.anomaly.ood_score > 0.7 ? 'error' : 'warning'}
                 sx={{ height: 6, borderRadius: 1, mt: 1 }}
@@ -222,13 +209,14 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
   );
 }
 
+
 function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
   if (!batchAnalysis || !batchAnalysis.results) return null;
-  
+
   const results = batchAnalysis.results;
   const spamCount = results.filter(r => r.label === 'spam').length;
   const hamCount = results.filter(r => r.label === 'ham').length;
-  
+
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>
@@ -237,9 +225,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={4}>
-          <Card sx={{ 
-            bgcolor: darkMode ? 'grey.800' : 'background.paper'
-          }}>
+          <Card sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography sx={{ color: colors.textSecondary }} variant="caption">Total</Typography>
               <Typography variant="h5" sx={{ color: colors.textColor }}>{results.length}</Typography>
@@ -247,10 +233,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
           </Card>
         </Grid>
         <Grid item xs={4}>
-          <Card sx={{ 
-            bgcolor: darkMode ? 'error.dark' : 'error.light',
-            color: darkMode ? 'error.contrastText' : 'inherit'
-          }}>
+          <Card sx={{ bgcolor: darkMode ? 'error.dark' : 'error.light' }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography sx={{ color: colors.textSecondary }} variant="caption">Spam</Typography>
               <Typography variant="h5" sx={{ color: colors.textColor }}>{spamCount}</Typography>
@@ -258,10 +241,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
           </Card>
         </Grid>
         <Grid item xs={4}>
-          <Card sx={{ 
-            bgcolor: darkMode ? 'success.dark' : 'success.light',
-            color: darkMode ? 'success.contrastText' : 'inherit'
-          }}>
+          <Card sx={{ bgcolor: darkMode ? 'success.dark' : 'success.light' }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography sx={{ color: colors.textSecondary }} variant="caption">Ham</Typography>
               <Typography variant="h5" sx={{ color: colors.textColor }}>{hamCount}</Typography>
@@ -277,53 +257,39 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
             type: 'bar',
             x: ['Spam', 'Ham'],
             y: [spamCount, hamCount],
-            marker: {
-              color: [spamColor, hamColor]
-            },
+            marker: { color: [spamColor, hamColor] },
             text: [spamCount, hamCount],
             textposition: 'auto',
           }]}
           layout={{
             width: window.innerWidth < 768 ? 350 : 500,
             height: 300,
-            title: {
-              text: 'Batch Prediction Distribution',
-              font: { color: colors.textColor }
-            },
+            title: { text: 'Batch Prediction Distribution', font: { color: colors.textColor } },
             paper_bgcolor: colors.paper_bgcolor,
             plot_bgcolor: colors.plot_bgcolor,
             font: { color: colors.textColor },
             yaxis: {
-              title: {
-                text: 'Count',
-                font: { color: colors.textColor }
-              },
+              title: { text: 'Count', font: { color: colors.textColor } },
               tickfont: { color: colors.textColor },
               gridcolor: colors.gridColor
             },
             xaxis: {
-              title: {
-                text: 'Label',
-                font: { color: colors.textColor }
-              },
+              title: { text: 'Label', font: { color: colors.textColor } },
               tickfont: { color: colors.textColor }
             },
             margin: { l: 50, r: 50, t: 50, b: 50 }
           }}
-          config={{
-            displayModeBar: false,
-            responsive: true
-          }}
+          config={{ displayModeBar: false, responsive: true }}
         />
       </Paper>
 
       <Paper sx={{ p: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
         <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Individual Results</Typography>
         {results.map((result, idx) => (
-          <Card 
-            key={idx} 
-            sx={{ 
-              mb: 2, 
+          <Card
+            key={idx}
+            sx={{
+              mb: 2,
               bgcolor: darkMode ? 'grey.900' : 'grey.50',
               borderLeft: 4,
               borderColor: result.label === 'spam' ? 'error.main' : 'success.main'
@@ -335,38 +301,30 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
                   Email #{idx + 1}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <Chip 
-                    label={result.label.toUpperCase()}
-                    color={result.label === 'spam' ? 'error' : 'success'}
-                    size="small"
-                  />
-                  <Chip 
+                  <Chip label={result.label.toUpperCase()} color={result.label === 'spam' ? 'error' : 'success'} size="small" />
+                  <Chip
                     label={`${(result.score * 100).toFixed(1)}%`}
                     variant="outlined"
                     size="small"
-                    sx={{
-                      bgcolor: darkMode ? 'grey.700' : 'background.paper',
-                      color: colors.textColor,
-                      borderColor: colors.borderColor
-                    }}
+                    sx={{ bgcolor: darkMode ? 'grey.700' : 'background.paper', color: colors.textColor, borderColor: colors.borderColor }}
                   />
                 </Box>
               </Box>
-              
+
               <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 1 }}>
-                <strong>Action:</strong> <Chip 
-                  label={result.action} 
-                  size="small" 
-                  sx={{ 
+                <strong>Action:</strong> <Chip
+                  label={result.action}
+                  size="small"
+                  sx={{
                     textTransform: 'capitalize',
                     bgcolor: darkMode ? 'grey.700' : 'background.paper',
                     color: colors.textColor,
                     borderColor: colors.borderColor,
                     border: 1
-                  }} 
+                  }}
                 />
               </Typography>
-              
+
               {result.reasons && result.reasons.length > 0 && (
                 <Box sx={{ mt: 1 }}>
                   <Typography variant="caption" sx={{ color: colors.textSecondary }}>Reasons:</Typography>
@@ -377,8 +335,8 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
                         label={reason.replace(/_/g, ' ')}
                         size="small"
                         variant="outlined"
-                        sx={{ 
-                          fontSize: '0.7rem', 
+                        sx={{
+                          fontSize: '0.7rem',
                           height: 20,
                           bgcolor: darkMode ? 'grey.700' : 'background.paper',
                           color: colors.textColor,
@@ -397,22 +355,21 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
   );
 }
 
+
 function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
   if (!batchAnalysis || !batchAnalysis.overview) return null;
-  
+
   const { overview, score_distribution, model_agreement, actions, top_spam_indicators, indexed_details } = batchAnalysis;
-  
+
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>
         Analysis Results
       </Typography>
-      
+
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} md={3}>
-          <Card sx={{ 
-            bgcolor: darkMode ? 'grey.800' : 'background.paper'
-          }}>
+          <Card sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
             <CardContent>
               <Typography sx={{ color: colors.textSecondary }} gutterBottom>Total Messages</Typography>
               <Typography variant="h4" sx={{ color: colors.textColor }}>{overview.total_messages}</Typography>
@@ -420,10 +377,7 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ 
-            bgcolor: darkMode ? 'error.dark' : 'error.light',
-            color: darkMode ? 'error.contrastText' : 'inherit'
-          }}>
+          <Card sx={{ bgcolor: darkMode ? 'error.dark' : 'error.light' }}>
             <CardContent>
               <Typography sx={{ color: colors.textSecondary }} gutterBottom>Spam Detected</Typography>
               <Typography variant="h4" sx={{ color: colors.textColor }}>{overview.spam_count}</Typography>
@@ -434,10 +388,7 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ 
-            bgcolor: darkMode ? 'success.dark' : 'success.light',
-            color: darkMode ? 'success.contrastText' : 'inherit'
-          }}>
+          <Card sx={{ bgcolor: darkMode ? 'success.dark' : 'success.light' }}>
             <CardContent>
               <Typography sx={{ color: colors.textSecondary }} gutterBottom>Legitimate</Typography>
               <Typography variant="h4" sx={{ color: colors.textColor }}>{overview.ham_count}</Typography>
@@ -448,9 +399,7 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ 
-            bgcolor: darkMode ? 'grey.800' : 'background.paper'
-          }}>
+          <Card sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
             <CardContent>
               <Typography sx={{ color: colors.textSecondary }} gutterBottom>Avg Score</Typography>
               <Typography variant="h4" sx={{ color: colors.textColor }}>{overview.avg_score.toFixed(2)}</Typography>
@@ -459,27 +408,18 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
         </Grid>
       </Grid>
 
-      {/* Bar Chart - Score Distribution */}
       {score_distribution && (
         <Box sx={{ mb: 3 }}>
-          <ScoreDistributionBarChart 
-            distributionData={score_distribution}
-            darkMode={darkMode}
-          />
+          <ScoreDistributionBarChart distributionData={score_distribution} darkMode={darkMode} />
         </Box>
       )}
 
-      {/* Scatter Plot - Shows both distribution AND progression */}
       {indexed_details && (
         <Box sx={{ mb: 3 }}>
-          <ScatterPlotChart 
-            data={indexed_details}
-            darkMode={darkMode}
-          />
+          <ScatterPlotChart data={indexed_details} darkMode={darkMode} />
         </Box>
       )}
 
-      {/* Spam vs Ham Pie Chart */}
       {overview && (
         <Box sx={{ mb: 3 }}>
           <SpamHamPieChart overview={overview} darkMode={darkMode} />
@@ -498,8 +438,8 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
             <Typography variant="body2" color="warning.main">Disagree: {model_agreement.disagree}</Typography>
           </Box>
         </Box>
-        <LinearProgress 
-          variant="determinate" 
+        <LinearProgress
+          variant="determinate"
           value={model_agreement.agreement_rate}
           color={model_agreement.agreement_rate > 80 ? "success" : "warning"}
           sx={{ height: 8, borderRadius: 1 }}
@@ -513,8 +453,8 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
             <Grid item xs={4} key={action}>
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="h4" color={
-                  action === 'block' ? 'error.main' : 
-                  action === 'quarantine' ? 'warning.main' : 
+                  action === 'block' ? 'error.main' :
+                  action === 'quarantine' ? 'warning.main' :
                   'success.main'
                 }>
                   {count}
@@ -533,13 +473,7 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Top Spam Indicators</Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {top_spam_indicators.slice(0, 10).map((indicator, idx) => (
-              <Chip
-                key={idx}
-                label={`${indicator.term} (×${indicator.count})`}
-                color="error"
-                variant="outlined"
-                size="small"
-              />
+              <Chip key={idx} label={`${indicator.term} (×${indicator.count})`} color="error" variant="outlined" size="small" />
             ))}
           </Box>
         </Paper>
@@ -563,24 +497,10 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
                 {indexed_details.map((item, idx) => (
                   <TableRow
                     key={idx}
-                    sx={{
-                      bgcolor:
-                        item.label === 'spam'
-                          ? 'error.light'
-                          : item.label === 'ham'
-                          ? 'success.light'
-                          : 'inherit',
-                    }}
+                    sx={{ bgcolor: item.label === 'spam' ? 'error.light' : item.label === 'ham' ? 'success.light' : 'inherit' }}
                   >
                     <TableCell>{idx + 1}</TableCell>
-                    <TableCell
-                      sx={{
-                        maxWidth: 250,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                    <TableCell sx={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.text}
                     </TableCell>
                     <TableCell>{item.label}</TableCell>
@@ -597,18 +517,56 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
   );
 }
 
+
 function App() {
+  const { darkMode, colors } = useContext(ThemeContext);
+  const { addPrediction } = useContext(PredictionContext);
+
   const [splitVisible, setSplitVisible] = useState(false);
+
+  // Single mode
   const [apiInput, setApiInput] = useState('');
   const [apiResult, setApiResult] = useState(null);
   const [apiLoading, setApiLoading] = useState(false);
+
+  // Batch mode
   const [batchMode, setBatchMode] = useState(false);
-  const [batchAnalyzeMode, setBatchAnalyzeMode] = useState(false); // false = basic (default), true = analyze
+  const [batchAnalyzeMode, setBatchAnalyzeMode] = useState(false); // false = basic, true = analyze
   const [batchInput, setBatchInput] = useState('');
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const [batchLoading, setBatchLoading] = useState(false);
-  const { darkMode, colors } = useContext(ThemeContext);
-  const { addPrediction } = useContext(PredictionContext);
+
+  // Resizable split between INPUT (left) and RESULTS (right)
+  const [leftWidth, setLeftWidth] = useState(50); // percentage
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
+  const dividerWidth = 8;
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const effective = rect.width - dividerWidth;
+      const leftPx = Math.min(Math.max(e.clientX - rect.left - dividerWidth / 2, 0), effective);
+      const pct = (leftPx / effective) * 100;
+      if (pct >= 20 && pct <= 80) setLeftWidth(pct);
+    };
+    const handleMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   const constructPrediction = (predictionData) => {
     const modelScores = {};
@@ -617,21 +575,17 @@ function App() {
 
     if (predictionData.ensemble) {
       Object.entries(predictionData.ensemble).forEach(([modelName, modelData]) => {
-        modelScores[modelName] = {
-          score: modelData.score,
-          label: modelData.label
-        };
+        modelScores[modelName] = { score: modelData.score, label: modelData.label };
         totalScore += modelData.score;
         modelCount++;
       });
     }
-
     const averageScore = modelCount > 0 ? totalScore / modelCount : predictionData.score || 0;
 
     return {
       timestamp: new Date().toISOString(),
       label: predictionData.label,
-      averageScore: averageScore,
+      averageScore,
       text: predictionData.text || '',
       reasons: Array.isArray(predictionData.reasons) ? predictionData.reasons : [],
       explain: Array.isArray(predictionData.explain) ? predictionData.explain : [],
@@ -643,19 +597,20 @@ function App() {
     setBatchLoading(true);
     setBatchAnalysis(null);
     try {
-        const emailTexts = batchInput.split('///').map(m => m.trim()).filter(m => m);
-      const endpoint = batchAnalyzeMode 
+      const emailTexts = batchInput.split('///').map(m => m.trim()).filter(m => m);
+      const endpoint = batchAnalyzeMode
         ? 'http://localhost:8000/predict-batch/analyze'
         : 'http://localhost:8000/predict-batch';
       const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: emailTexts }),
+        body: JSON.stringify({ items: emailTexts }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || 'Batch prediction failed');
       setBatchAnalysis(batchAnalyzeMode ? data : { results: data });
-      
+      setSplitVisible(true);
+
       if (!data.error) {
         const results = batchAnalyzeMode ? data.indexed_details || [] : data;
         if (Array.isArray(results)) {
@@ -681,233 +636,265 @@ function App() {
 
   return (
     <>
-      <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 0, mb: 2, px: 2 }}>
-        <MainHeadings colors={colors} />
-      </Box>
-      <Box sx={{ px: 2, mb: 4 }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, width: '100%', minHeight: 240, bgcolor: darkMode ? 'grey.900' : 'background.default', color: darkMode ? 'common.white' : 'common.black', borderRadius: 1, overflow: 'hidden' }}>
-          <Box sx={{ order: { xs: 2, md: 1 }, flex: 1, p: 2, width: { xs: '100%', md: 'auto' } }}>
-            <Box sx={{ display: { xs: 'none', md: 'block' }, mt: 0, mb: 2, p: 0 }}>
-              <MainHeadings colors={colors} />
-            </Box>
-            <Box sx={{ mb: 2 }}>
-              <Switch
-                checked={batchMode}
-                onChange={() => {
-                  setBatchMode(!batchMode);
-                  setSplitVisible(false);
-                  setApiResult(null);
-                  setBatchAnalysis(null);
-                }}
-                color="secondary"
-              />
-              <Typography variant="body2" sx={{ display: 'inline', ml: 1, color: colors.textColor }}>
-                {batchMode ? 'Batch Mode' : 'Single Mode'}
-              </Typography>
-            </Box>
-            {batchMode ? (
-              <>
-                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Switch
-                    checked={batchAnalyzeMode}
-                    onChange={() => setBatchAnalyzeMode(!batchAnalyzeMode)}
-                    color="secondary"
-                  />
-                  <Typography variant="body2" sx={{ color: colors.textColor }}>
-                    {batchAnalyzeMode ? 'Analysis Mode' : 'Basic Mode'}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ mt: 1, color: colors.textColor }}>
-                  Enter multiple emails below:
-                </Typography>
-                <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
-                  Separate multiple emails with <strong>///</strong> (three slashes on a new line)
-                </Alert>
-                <TextField
-                  label="Batch Email Input"
-                  placeholder={`Email 1 text here...\n///\nEmail 2 text here...\n///\nEmail 3 text here...`}
-                  multiline
-                  minRows={8}
-                  fullWidth
-                  value={batchInput}
-                  onChange={(e) => setBatchInput(e.target.value)}
-                  sx={{ 
-                    mt: 1, 
-                    fontFamily: 'monospace',
-                    '& .MuiInputBase-input': {
-                      color: colors.textColor,
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: colors.textSecondary,
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': {
-                        borderColor: colors.borderColor,
-                      },
-                      '&:hover fieldset': {
-                        borderColor: colors.borderHover,
-                      },
-                    },
-                  }}
-                />
-                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                  <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                    {batchInput.split('///').filter(m => m.trim()).length} messages ready
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'block', mt: 2 }}>
-                  <Button
-                    variant="contained"
-                    onClick={handleBatchAnalyze}
-                    disabled={batchLoading || !batchInput.trim()}
-                  >
-                    {batchLoading ? 'Analyzing...' : 'Predict'}
-                  </Button>
-                </Box>
-                {batchAnalysis && batchAnalysis.error && (
-                  <Alert severity="error" sx={{ mt: 2 }}>
-                    {batchAnalysis.error}
-                  </Alert>
-                )}
-              </>
-            ) : (
-              <>
-                <Typography variant="body2" sx={{ mt: 1, color: colors.textColor }}>Enter the text of your email in the field below.</Typography>
-                <TextField
-                  label="Email text"
-                  placeholder="Paste email body here"
-                  multiline
-                  minRows={4}
-                  fullWidth
-                  value={apiInput}
-                  onChange={(e) => setApiInput(e.target.value)}
-                  sx={{ 
-                    mt: 1,
-                    '& .MuiInputBase-input': {
-                      color: colors.textColor,
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: colors.textSecondary,
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': {
-                        borderColor: colors.borderColor,
-                      },
-                      '&:hover fieldset': {
-                        borderColor: colors.borderHover,
-                      },
-                    },
-                  }}
-                />
-                <Box sx={{ display: 'block', mt: 1 }}>
-                  <Button
-                    variant="contained"
-                    onClick={async () => {
-                      setSplitVisible(true);
-                      try {
-                        setApiLoading(true);
-                        setApiResult(null);
-                        const resp = await fetch('http://localhost:8000/predict', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ text: apiInput }),
-                        });
-                        const data = await resp.json();
-                        if (!resp.ok) throw new Error(data.detail || 'Prediction failed');
-                        setApiResult(data);
-                        if (!data.error) {
-                          const prediction = constructPrediction({ ...data, text: apiInput });
-                          addPrediction(prediction);
-                        }
-                      } catch (err) {
-                        setApiResult({ error: String(err) });
-                      } finally {
-                        setApiLoading(false);
-                      }
-                    }}
-                    aria-controls="split-left-pane"
-                  >
-                    {splitVisible ? 'Predict' : 'Predict'}
-                  </Button>
-                </Box>
-                {apiResult && apiResult.error && (
-                  <Typography color="error" sx={{ mt: 1 }}>Error: {apiResult.error}</Typography>
-                )}
-              </>
-            )}
-          </Box>
+      <Box sx={{ bgcolor: colors.backgroundColor, minHeight: '100vh', py: 4 }}>
+        <Container maxWidth="xl">
+          <MainHeadings batchMode={batchMode} colors={colors} />
+
+          {/* Splitter container: LEFT = INPUT; RIGHT = RESULTS */}
           <Box
+            ref={containerRef}
             sx={{
-              order: { xs: 1, md: 0 },
-              display: { xs: splitVisible ? 'block' : 'none', md: 'block' },
-              width: { xs: '100%', md: '50%' },
-              p: 2,
-              borderRight: { md: '1px solid' },
-              borderColor: 'divider',
-              maxHeight: { md: '80vh' },
-              overflowY: 'auto'
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              gap: 0,
+              position: 'relative',
+              px: { xs: 0, sm: 0 },
+              userSelect: isDragging ? 'none' : 'auto'
             }}
-            aria-hidden={!splitVisible && true}
-            id="split-left-pane"
           >
-            {batchMode ? (
-              batchLoading ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
-                  <CircularProgress size={40} />
-                  <Typography sx={{ mt: 2, color: colors.textColor }}>Analyzing messages...</Typography>
-                </Box>
-              ) : batchAnalysis ? (
-                batchAnalysis.error ? (
-                  <Alert severity="error" sx={{ mt: 1 }}>
-                    {batchAnalysis.error}
+            {/* LEFT PANE: INPUT */}
+            <Box
+              sx={{
+                order: 0,
+                width: { xs: '100%', md: `calc((100% - ${dividerWidth}px) * ${leftWidth / 100})` },
+                p: 2,
+                maxHeight: { md: '80vh' },
+                overflowY: 'auto',
+                transition: isDragging ? 'none' : 'width 0.1s ease'
+              }}
+            >
+              <Box sx={{ mb: 2 }}>
+                <Switch
+                  checked={batchMode}
+                  onChange={() => {
+                    setBatchMode(!batchMode);
+                    setSplitVisible(false);
+                    setApiResult(null);
+                    setBatchAnalysis(null);
+                  }}
+                  color="secondary"
+                />
+                <Typography variant="body2" sx={{ display: 'inline', ml: 1, color: colors.textColor }}>
+                  {batchMode ? 'Batch Mode' : 'Single Mode'}
+                </Typography>
+              </Box>
+
+              {batchMode ? (
+                <>
+                  <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Switch
+                      checked={batchAnalyzeMode}
+                      onChange={() => setBatchAnalyzeMode(!batchAnalyzeMode)}
+                      color="secondary"
+                    />
+                    <Typography variant="body2" sx={{ color: colors.textColor }}>
+                      {batchAnalyzeMode ? 'Analysis Mode' : 'Basic Mode'}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ mt: 1, color: colors.textColor }}>
+                    Enter multiple emails below:
+                  </Typography>
+                  <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+                    Separate multiple emails with <strong>///</strong> (three slashes on a new line)
                   </Alert>
-                ) : batchAnalyzeMode ? (
-                  <BatchAnalysisResults batchAnalysis={batchAnalysis} darkMode={darkMode} colors={colors} />
+                  <TextField
+                    label="Batch Email Input"
+                    placeholder={`Email 1 text here...\n///\nEmail 2 text here...\n///\nEmail 3 text here...`}
+                    multiline
+                    minRows={8}
+                    fullWidth
+                    value={batchInput}
+                    onChange={(e) => setBatchInput(e.target.value)}
+                    sx={{
+                      mt: 1,
+                      fontFamily: 'monospace',
+                      '& .MuiInputBase-input': { color: colors.textColor },
+                      '& .MuiInputLabel-root': { color: colors.textSecondary },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': { borderColor: colors.borderColor },
+                        '&:hover fieldset': { borderColor: colors.borderHover },
+                      },
+                    }}
+                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                    <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                      {batchInput.split('///').filter(m => m.trim()).length} messages ready
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'block', mt: 2 }}>
+                    <Button
+                      variant="contained"
+                      onClick={handleBatchAnalyze}
+                      disabled={batchLoading || !batchInput.trim()}
+                    >
+                      {batchLoading ? 'Analyzing...' : 'Predict'}
+                    </Button>
+                  </Box>
+                  {batchAnalysis && batchAnalysis.error && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {batchAnalysis.error}
+                    </Alert>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Typography variant="body2" sx={{ mt: 1, color: colors.textColor }}>
+                    Enter the text of your email in the field below.
+                  </Typography>
+                  <TextField
+                    label="Email text"
+                    placeholder="Paste email body here"
+                    multiline
+                    minRows={4}
+                    fullWidth
+                    value={apiInput}
+                    onChange={(e) => setApiInput(e.target.value)}
+                    sx={{
+                      mt: 1,
+                      '& .MuiInputBase-input': { color: colors.textColor },
+                      '& .MuiInputLabel-root': { color: colors.textSecondary },
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': { borderColor: colors.borderColor },
+                        '&:hover fieldset': { borderColor: colors.borderHover },
+                      },
+                    }}
+                  />
+                  <Box sx={{ display: 'block', mt: 1 }}>
+                    <Button
+                      variant="contained"
+                      onClick={async () => {
+                        setSplitVisible(true);
+                        try {
+                          setApiLoading(true);
+                          setApiResult(null);
+                          const resp = await fetch('http://localhost:8000/predict', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: apiInput }),
+                          });
+                          const data = await resp.json();
+                          if (!resp.ok) throw new Error(data.detail || 'Prediction failed');
+                          setApiResult(data);
+                          if (!data.error) {
+                            const prediction = constructPrediction({ ...data, text: apiInput });
+                            addPrediction(prediction);
+                          }
+                        } catch (err) {
+                          setApiResult({ error: String(err) });
+                        } finally {
+                          setApiLoading(false);
+                        }
+                      }}
+                      aria-controls="split-right-pane"
+                    >
+                      Predict
+                    </Button>
+                  </Box>
+                  {apiResult && apiResult.error && (
+                    <Typography color="error" sx={{ mt: 1 }}>Error: {apiResult.error}</Typography>
+                  )}
+                </>
+              )}
+            </Box>
+
+            {/* DIVIDER (desktop only) */}
+            <Box
+              onMouseDown={handleMouseDown}
+              sx={{
+                display: { xs: 'none', md: 'block' },
+                flex: `0 0 ${dividerWidth}px`,
+                width: `${dividerWidth}px`,
+                cursor: 'col-resize',
+                bgcolor: isDragging ? 'primary.main' : colors.borderColor,
+                transition: isDragging ? 'none' : 'background-color 0.2s',
+                '&:hover': { bgcolor: 'primary.light' },
+                position: 'relative',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '2px',
+                  height: '40px',
+                  bgcolor: darkMode ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
+                  borderRadius: '1px'
+                }
+              }}
+            />
+
+            {/* RIGHT PANE: RESULTS */}
+            <Box
+              sx={{
+                order: 0,
+                display: { xs: splitVisible ? 'block' : 'none', md: 'block' },
+                width: { xs: '100%', md: `calc((100% - ${dividerWidth}px) * ${(100 - leftWidth) / 100})` },
+                p: 2,
+                maxHeight: { md: '80vh' },
+                overflowY: 'auto',
+                transition: isDragging ? 'none' : 'width 0.1s ease'
+              }}
+              id="split-right-pane"
+            >
+              {batchMode ? (
+                batchLoading ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
+                    <CircularProgress size={40} />
+                    <Typography sx={{ mt: 2, color: colors.textColor }}>Analyzing messages...</Typography>
+                  </Box>
+                ) : batchAnalysis ? (
+                  batchAnalysis.error ? (
+                    <Alert severity="error" sx={{ mt: 1 }}>
+                      {batchAnalysis.error}
+                    </Alert>
+                  ) : batchAnalyzeMode ? (
+                    <BatchAnalysisResults batchAnalysis={batchAnalysis} darkMode={darkMode} colors={colors} />
+                  ) : (
+                    <BasicBatchResults batchAnalysis={batchAnalysis} darkMode={darkMode} colors={colors} />
+                  )
                 ) : (
-                  <BasicBatchResults batchAnalysis={batchAnalysis} darkMode={darkMode} colors={colors} />
+                  <Box sx={{ textAlign: 'center', mt: 4 }}>
+                    <AssessmentIcon sx={{ fontSize: 60, color: colors.textDisabled, mb: 2 }} />
+                    <Typography variant="h6" sx={{ color: colors.textSecondary }}>
+                      No {batchAnalyzeMode ? 'analysis' : 'results'} yet
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 1, color: colors.textDisabled }}>
+                      {batchAnalyzeMode
+                        ? 'Enter multiple emails separated by "///" and click "Predict" for detailed analysis'
+                        : 'Enter multiple emails separated by "///" and click "Predict" for basic results'
+                      }
+                    </Typography>
+                  </Box>
                 )
               ) : (
-                <Box sx={{ textAlign: 'center', mt: 4 }}>
-                  <AssessmentIcon sx={{ fontSize: 60, color: colors.textDisabled, mb: 2 }} />
-                  <Typography variant="h6" sx={{ color: colors.textSecondary }}>
-                    No {batchAnalyzeMode ? 'analysis' : 'results'} yet
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1, color: colors.textDisabled }}>
-                    {batchAnalyzeMode 
-                      ? 'Enter multiple emails separated by "///" and click "Predict" for detailed analysis'
-                      : 'Enter multiple emails separated by "///" and click "Predict" for basic results'
-                    }
-                  </Typography>
-                </Box>
-              )
-            ) : (
-              apiLoading ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
-                  <CircularProgress size={40} />
-                  <Typography sx={{ mt: 2, color: colors.textColor }}>Analyzing email...</Typography>
-                </Box>
-              ) : apiResult ? (
-                apiResult.error ? (
-                  <Alert severity="error" sx={{ mt: 1 }}>
-                    {apiResult.error}
-                  </Alert>
+                apiLoading ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
+                    <CircularProgress size={40} />
+                    <Typography sx={{ mt: 2, color: colors.textColor }}>Analyzing email...</Typography>
+                  </Box>
+                ) : apiResult ? (
+                  apiResult.error ? (
+                    <Alert severity="error" sx={{ mt: 1 }}>
+                      {apiResult.error}
+                    </Alert>
+                  ) : (
+                    <BasicSingleResults apiResult={apiResult} darkMode={darkMode} colors={colors} />
+                  )
                 ) : (
-                  <BasicSingleResults apiResult={apiResult} darkMode={darkMode} colors={colors} />
+                  <Box sx={{ textAlign: 'center', mt: 4 }}>
+                    <MailIcon sx={{ fontSize: 60, color: colors.textDisabled, mb: 2 }} />
+                    <Typography variant="h6" sx={{ color: colors.textSecondary }}>
+                      No results yet
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 1, color: colors.textDisabled }}>
+                      Enter email text and click "Predict"
+                    </Typography>
+                  </Box>
                 )
-              ) : (
-                <Box sx={{ textAlign: 'center', mt: 4 }}>
-                  <MailIcon sx={{ fontSize: 60, color: colors.textDisabled, mb: 2 }} />
-                  <Typography variant="h6" sx={{ color: colors.textSecondary }}>
-                    No results yet
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1, color: colors.textDisabled }}>
-                    Enter email text and click "Predict"
-                  </Typography>
-                </Box>
-              )
-            )}
+              )}
+            </Box>
           </Box>
-        </Box>
+        </Container>
       </Box>
     </>
   );

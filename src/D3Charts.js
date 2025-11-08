@@ -2,221 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Box, Paper, Typography, ButtonGroup, Button } from '@mui/material';
 
-// ============================================================================
-// 1. SCORE DISTRIBUTION BAR CHART
-// ============================================================================
-
-// export const ScoreDistributionBarChart = ({ distributionData, darkMode }) => {
-//   const svgRef = useRef();
-//   const tooltipRef = useRef();
-//   const [selectedBar, setSelectedBar] = useState(null);
-
-//   useEffect(() => {
-//     if (!distributionData) return;
-
-//     const svg = d3.select(svgRef.current);
-//     svg.selectAll('*').remove();
-
-//     // Get container width for responsive sizing
-//     const containerWidth = svgRef.current.parentElement.offsetWidth;
-//     const margin = { top: 40, right: 40, bottom: 60, left: 80 };
-//     const width = Math.min(containerWidth - margin.left - margin.right - 40, 800);
-//     const height = 350 - margin.top - margin.bottom;
-
-//     const g = svg
-//       .attr('width', width + margin.left + margin.right)
-//       .attr('height', height + margin.top + margin.bottom)
-//       .append('g')
-//       .attr('transform', `translate(${margin.left},${margin.top})`);
-
-//     const barData = Object.entries(distributionData).map(([range, count]) => ({ range, count }));
-    
-//     const xBar = d3.scaleBand()
-//       .domain(barData.map(d => d.range))
-//       .range([0, width])
-//       .padding(0.4);
-
-//     const yBar = d3.scaleLinear()
-//       .domain([0, Math.ceil(d3.max(barData, d => d.count))])
-//       .range([height, 0]);
-
-//     const colorScale = d3.scaleOrdinal()
-//       .domain(['0.0-0.2', '0.2-0.4', '0.4-0.6', '0.6-0.8', '0.8-1.0'])
-//       .range(['#4caf50', '#8bc34a', '#ffc107', '#ff9800', '#f44336']);
-
-//     // Axes
-//     g.append('g')
-//       .attr('transform', `translate(0,${height})`)
-//       .call(d3.axisBottom(xBar))
-//       .selectAll('text')
-//       .attr('transform', 'rotate(-45)')
-//       .style('text-anchor', 'end')
-//       .style('fill', darkMode ? 'white' : 'black');
-
-//     g.append('g')
-//       .call(d3.axisLeft(yBar).ticks(Math.ceil(d3.max(barData, d => d.count))).tickFormat(d3.format('d')))
-//       .selectAll('text')
-//       .style('fill', darkMode ? 'white' : 'black');
-
-//     // Grid lines
-//     g.append('g')
-//       .attr('class', 'grid')
-//       .attr('opacity', 0.1)
-//       .call(d3.axisLeft(yBar)
-//         .ticks(Math.ceil(d3.max(barData, d => d.count)))
-//         .tickSize(-width)
-//         .tickFormat('')
-//       );
-
-//     // Bars
-//     const bars = g.selectAll('.bar')
-//       .data(barData)
-//       .enter()
-//       .append('rect')
-//       .attr('class', 'bar')
-//       .attr('x', d => xBar(d.range))
-//       .attr('width', xBar.bandwidth())
-//       .attr('y', height)
-//       .attr('height', 0)
-//       .attr('fill', d => colorScale(d.range))
-//       .attr('rx', 4)
-//       .style('cursor', 'pointer');
-
-//     bars.each(function(d) {
-//       const bar = d3.select(this);
-//       if (selectedBar === null) {
-//         bar.attr('opacity', 1).attr('stroke', 'none').attr('stroke-width', 0);
-//       } else if (selectedBar === d.range) {
-//         bar.attr('opacity', 1).attr('stroke', '#000').attr('stroke-width', 3);
-//       } else {
-//         bar.attr('opacity', 0.3).attr('stroke', 'none').attr('stroke-width', 0);
-//       }
-//     });
-
-//     bars.transition()
-//       .duration(800)
-//       .delay((d, i) => i * 100)
-//       .attr('y', d => yBar(d.count))
-//       .attr('height', d => height - yBar(d.count));
-
-//     bars.on('mouseenter', function(event, d) {
-//       const self = d3.select(this);
-//       const isSelected = selectedBar === d.range;
-      
-//       if (!isSelected) {
-//         self.transition().duration(150)
-//           .attr('opacity', 0.8)
-//           .attr('stroke', '#333')
-//           .attr('stroke-width', 2);
-//       }
-
-//       const totalCount = barData.reduce((sum, item) => sum + item.count, 0);
-//       const percentage = ((d.count / totalCount) * 100).toFixed(1);
-      
-//       const tooltipDiv = tooltipRef.current;
-//       if (!tooltipDiv) return;
-
-//       tooltipDiv.style.position = 'fixed';
-//       tooltipDiv.style.visibility = 'visible';
-//       tooltipDiv.style.display = 'block';
-//       tooltipDiv.style.backgroundColor = darkMode ? '#2a2a2a' : '#1a1a1a';
-//       tooltipDiv.style.color = 'white';
-//       tooltipDiv.style.border = 'none';
-//       tooltipDiv.style.borderRadius = '8px';
-//       tooltipDiv.style.padding = '16px 20px';
-//       tooltipDiv.style.pointerEvents = 'none';
-//       tooltipDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-//       tooltipDiv.style.zIndex = '99999';
-//       tooltipDiv.style.fontFamily = 'Arial, sans-serif';
-//       tooltipDiv.style.minWidth = '200px';
-//       tooltipDiv.style.left = (event.clientX + 15) + 'px';
-//       tooltipDiv.style.top = (event.clientY - 10) + 'px';
-      
-//       tooltipDiv.innerHTML = `
-//         <div style="font-size: 20px; font-weight: bold; margin-bottom: 12px; color: #fff;">
-//           Score Range ${d.range}
-//         </div>
-//         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-//           <span style="color: #aaa;">Count:</span>
-//           <span style="color: #5bc0de; font-weight: bold; font-size: 18px; margin-left: 20px;">${d.count}</span>
-//         </div>
-//         <div style="display: flex; justify-content: space-between;">
-//           <span style="color: #aaa;">Percentage:</span>
-//           <span style="color: #f0ad4e; font-weight: bold; font-size: 18px; margin-left: 20px;">${percentage}%</span>
-//         </div>
-//       `;
-//     });
-
-//     bars.on('mousemove', function(event) {
-//       const tooltipDiv = tooltipRef.current;
-//       if (tooltipDiv) {
-//         tooltipDiv.style.left = (event.clientX + 15) + 'px';
-//         tooltipDiv.style.top = (event.clientY - 10) + 'px';
-//       }
-//     });
-
-//     bars.on('mouseleave', function(event, d) {
-//       const self = d3.select(this);
-//       const isSelected = selectedBar === d.range;
-      
-//       if (!isSelected) {
-//         self.transition().duration(150)
-//           .attr('opacity', selectedBar === null ? 1 : 0.3)
-//           .attr('stroke', 'none')
-//           .attr('stroke-width', 0);
-//       }
-
-//       const tooltipDiv = tooltipRef.current;
-//       if (tooltipDiv) {
-//         tooltipDiv.style.visibility = 'hidden';
-//         tooltipDiv.style.display = 'none';
-//       }
-//     });
-
-//     bars.on('click', function(event, d) {
-//       event.stopPropagation();
-//       setSelectedBar(selectedBar === d.range ? null : d.range);
-//     });
-
-//     svg.on('click', () => setSelectedBar(null));
-
-//     // Labels
-//     g.append('text')
-//       .attr('x', width / 2)
-//       .attr('y', height + 55)
-//       .attr('text-anchor', 'middle')
-//       .style('fill', darkMode ? 'white' : 'black')
-//       .style('font-size', '12px')
-//       .text('Score Range');
-
-//     g.append('text')
-//       .attr('transform', 'rotate(-90)')
-//       .attr('x', -height / 2)
-//       .attr('y', -margin.left + 20)
-//       .attr('text-anchor', 'middle')
-//       .style('fill', darkMode ? 'white' : 'black')
-//       .style('font-size', '12px')
-//       .text('Number of Messages');
-
-//   }, [distributionData, darkMode, selectedBar]);
-
-//   return (
-//     <Paper sx={{ p: 2, position: 'relative' }}>
-//       <Typography variant="h6" gutterBottom>Score Distribution</Typography>
-//       <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 2 }}>
-//         Distribution of spam scores across all messages • Hover for details • Click to highlight
-//       </Typography>
-//       <Box sx={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
-//         <svg ref={svgRef} style={{ display: 'block', maxWidth: '100%' }}></svg>
-//         <div ref={tooltipRef} style={{ 
-//           position: 'fixed',
-//           visibility: 'hidden',
-//           pointerEvents: 'none'
-//         }}></div>
-//       </Box>
-//     </Paper>
-//   );
-// };
 
 export const ScoreDistributionBarChart = ({ distributionData, darkMode }) => {
   const svgRef = useRef();
@@ -426,10 +211,6 @@ export const ScoreDistributionBarChart = ({ distributionData, darkMode }) => {
 };
 
 
-// ============================================================================
-// 2. SCATTER PLOT CHART
-// ============================================================================
-
 export const ScatterPlotChart = ({ data, darkMode }) => {
   const svgRef = useRef();
   const tooltipRef = useRef();
@@ -441,6 +222,15 @@ export const ScatterPlotChart = ({ data, darkMode }) => {
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
+
+    // --- helper: hide tooltip everywhere we need ---
+    const hideTooltip = () => {
+      const t = tooltipRef.current;
+      if (t) {
+        t.style.visibility = 'hidden';
+        t.style.display = 'none';
+      }
+    };
 
     // Get container width for responsive sizing
     const containerWidth = svgRef.current.parentElement.offsetWidth;
@@ -529,9 +319,7 @@ export const ScatterPlotChart = ({ data, darkMode }) => {
       const isSelected = selectedPoint === d.messageNumber;
       const radius = isSelected ? 12 : 7;
       const opacity = (selectedPoint === null || isSelected) ? 0.8 : 0.3;
-      
-      circle.attr('r', radius)
-            .attr('opacity', opacity);
+      circle.attr('r', radius).attr('opacity', opacity);
     });
 
     circles.transition()
@@ -542,7 +330,6 @@ export const ScatterPlotChart = ({ data, darkMode }) => {
     circles.on('mouseenter', function(event, d) {
       const self = d3.select(this);
       const isSelected = selectedPoint === d.messageNumber;
-      
       if (!isSelected) {
         self.transition().duration(150)
           .attr('r', 10)
@@ -551,7 +338,6 @@ export const ScatterPlotChart = ({ data, darkMode }) => {
 
       const preview = d.text ? d.text.substring(0, 50) + '...' : 'No preview available';
       const scorePercent = (d.score * 100).toFixed(1);
-      
       const tooltipDiv = tooltipRef.current;
       if (!tooltipDiv) return;
 
@@ -566,11 +352,9 @@ export const ScatterPlotChart = ({ data, darkMode }) => {
       tooltipDiv.style.pointerEvents = 'none';
       tooltipDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
       tooltipDiv.style.zIndex = '99999';
-      tooltipDiv.style.fontFamily = 'Arial, sans-serif';
       tooltipDiv.style.minWidth = '240px';
       tooltipDiv.style.left = (event.clientX + 15) + 'px';
       tooltipDiv.style.top = (event.clientY - 10) + 'px';
-      
       tooltipDiv.innerHTML = `
         <div style="font-size: 20px; font-weight: bold; margin-bottom: 12px; color: #fff;">
           Message #${d.messageNumber}
@@ -601,26 +385,34 @@ export const ScatterPlotChart = ({ data, darkMode }) => {
     circles.on('mouseleave', function(event, d) {
       const self = d3.select(this);
       const isSelected = selectedPoint === d.messageNumber;
-      
       if (!isSelected) {
         self.transition().duration(150)
           .attr('r', 7)
           .attr('stroke-width', 1.5);
       }
-
-      const tooltipDiv = tooltipRef.current;
-      if (tooltipDiv) {
-        tooltipDiv.style.visibility = 'hidden';
-        tooltipDiv.style.display = 'none';
-      }
+      hideTooltip();
     });
 
+    // CLICK: toggle selection AND HIDE TOOLTIP (← fix)
     circles.on('click', function(event, d) {
       event.stopPropagation();
       setSelectedPoint(selectedPoint === d.messageNumber ? null : d.messageNumber);
+      hideTooltip();
     });
 
-    svg.on('click', () => setSelectedPoint(null));
+    // Clicking anywhere on the SVG background clears selection + hides tooltip
+    svg.on('click', () => {
+      setSelectedPoint(null);
+      hideTooltip();
+    });
+
+    // If moving the mouse over SVG but NOT on a circle → hide tooltip
+    svg.on('mousemove', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element) || target.tagName.toLowerCase() !== 'circle') {
+        hideTooltip();
+      }
+    });
 
     // Labels
     g.append('text')
@@ -715,9 +507,6 @@ export const ScatterPlotChart = ({ data, darkMode }) => {
   );
 };
 
-// ============================================================================
-// 3. SPAM vs HAM PIE CHART
-// ============================================================================
 
 export const SpamHamPieChart = ({ overview, darkMode }) => {
   const svgRef = useRef();
