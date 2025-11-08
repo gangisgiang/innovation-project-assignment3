@@ -11,6 +11,7 @@ import {
 import Plot from 'react-plotly.js';
 import { ThemeContext } from './background';
 import { PredictionContext } from './PredictionProvider';
+import { ScoreDistributionBarChart, ScatterPlotChart, SpamHamPieChart } from './D3Charts';
 
 // Colours for chart
 const hamColor = 'rgba(76,175,80,0.8)'; // green
@@ -220,8 +221,6 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
     </Box>
   );
 }
-
-{/* Add in SingleAnalysisResults if that API gets built */}
 
 function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
   if (!batchAnalysis || !batchAnalysis.results) return null;
@@ -460,22 +459,32 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
         </Grid>
       </Grid>
 
-      <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
-        <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Score Distribution</Typography>
-        {Object.entries(score_distribution).map(([range, count]) => (
-          <Box key={range} sx={{ mb: 1 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="body2" sx={{ color: colors.textColor }}>{range}</Typography>
-              <Typography variant="body2" sx={{ color: colors.textSecondary }}>{count} messages</Typography>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={(count / overview.total_messages) * 100}
-              sx={{ height: 8, borderRadius: 1 }}
-            />
-          </Box>
-        ))}
-      </Paper>
+      {/* Bar Chart - Score Distribution */}
+      {score_distribution && (
+        <Box sx={{ mb: 3 }}>
+          <ScoreDistributionBarChart 
+            distributionData={score_distribution}
+            darkMode={darkMode}
+          />
+        </Box>
+      )}
+
+      {/* Scatter Plot - Shows both distribution AND progression */}
+      {indexed_details && (
+        <Box sx={{ mb: 3 }}>
+          <ScatterPlotChart 
+            data={indexed_details}
+            darkMode={darkMode}
+          />
+        </Box>
+      )}
+
+      {/* Spam vs Ham Pie Chart */}
+      {overview && (
+        <Box sx={{ mb: 3 }}>
+          <SpamHamPieChart overview={overview} darkMode={darkMode} />
+        </Box>
+      )}
 
       <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
         <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Model Agreement</Typography>
@@ -619,7 +628,6 @@ function App() {
 
     const averageScore = modelCount > 0 ? totalScore / modelCount : predictionData.score || 0;
 
-    {/* Date for prediction page */}
     return {
       timestamp: new Date().toISOString(),
       label: predictionData.label,
@@ -635,7 +643,7 @@ function App() {
     setBatchLoading(true);
     setBatchAnalysis(null);
     try {
-        const emailTexts = batchInput.split('---').map(m => m.trim()).filter(m => m);
+        const emailTexts = batchInput.split('///').map(m => m.trim()).filter(m => m);
       const endpoint = batchAnalyzeMode 
         ? 'http://localhost:8000/predict-batch/analyze'
         : 'http://localhost:8000/predict-batch';
@@ -713,11 +721,11 @@ function App() {
                   Enter multiple emails below:
                 </Typography>
                 <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
-                  Separate multiple emails with <strong>---</strong> (three dashes on a new line)
+                  Separate multiple emails with <strong>///</strong> (three slashes on a new line)
                 </Alert>
                 <TextField
                   label="Batch Email Input"
-                  placeholder={`Email 1 text here...\n---\nEmail 2 text here...\n---\nEmail 3 text here...`}
+                  placeholder={`Email 1 text here...\n///\nEmail 2 text here...\n///\nEmail 3 text here...`}
                   multiline
                   minRows={8}
                   fullWidth
@@ -744,7 +752,7 @@ function App() {
                 />
                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                   <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                    {batchInput.split('---').filter(m => m.trim()).length} messages ready
+                    {batchInput.split('///').filter(m => m.trim()).length} messages ready
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'block', mt: 2 }}>
@@ -866,8 +874,8 @@ function App() {
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1, color: colors.textDisabled }}>
                     {batchAnalyzeMode 
-                      ? 'Enter multiple emails separated by "---" and click "Predict" for detailed analysis'
-                      : 'Enter multiple emails separated by "---" and click "Predict" for basic results'
+                      ? 'Enter multiple emails separated by "///" and click "Predict" for detailed analysis'
+                      : 'Enter multiple emails separated by "///" and click "Predict" for basic results'
                     }
                   </Typography>
                 </Box>

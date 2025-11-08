@@ -311,7 +311,7 @@ def explain_from_rf(bundle, raw_text: str, clean_text_str: str, top_k: int = 8) 
     spam_keywords = [
         "free", "win", "prize", "congratulations", "money",
         "click", "offer", "urgent", "credit", "bonus",
-        "cashback", "deal", "discount", "limited", "now"
+        "cashback", "deal", "discount", "limited", "gift"
     ]
     
     text_lower = raw_text.lower()

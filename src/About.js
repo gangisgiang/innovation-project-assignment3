@@ -38,8 +38,8 @@ function About() {
             <ul>
                 <li>Frontend: React with Material-UI</li>
                 <li>Backend: FastAPI</li>
-                <li>ML Models: rf, xgb</li>
-                <li>Visualization: Plotly.js, Chart.js, D3</li>
+                <li>ML Models: Random Forest, XGBoost</li>
+                <li>Visualization: Plotly.js, Chart.js, D3.js</li>
             </ul>
         </Typography>
         <Typography variant="body1" sx={{ mt: 4 }}>

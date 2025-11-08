@@ -13,7 +13,7 @@ export function PredictionProvider({ children }) {
     setPredictionHistory(prev => {
       const updated = [...prev, predictionData];
       // Keep only the most recent 10 predictions
-      return updated.slice(-10);
+      return updated.slice(-15);
     });
   };
 
