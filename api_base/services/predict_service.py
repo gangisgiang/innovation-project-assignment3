@@ -249,7 +249,11 @@ def _kmeans_anomaly(clean_text_str: str, bundle) -> Dict:
         "ood_score": float(round(ood_score, 4))
     }
 
-def explain_from_rf(bundle, top_k: int = 8) -> List[Dict]:
+def explain_from_rf(bundle, raw_text: str, clean_text_str: str, top_k: int = 8) -> List[Dict]:
+    """
+    Extract text-specific key terms based on TF-IDF values AND engineered features.
+    This shows what the model actually "sees" that makes it classify as spam/ham.
+    """
     vec = bundle.rf_vectorizer
     
     # Get TF-IDF feature names
@@ -261,38 +265,109 @@ def explain_from_rf(bundle, top_k: int = 8) -> List[Dict]:
         except:
             return []
     
-    # Add engineered feature names (7 features used by RF)
+    # Transform the specific text to get its TF-IDF values
+    X_tfidf = vec.transform([clean_text_str])
+    tfidf_values = X_tfidf.toarray()[0]
+    
+    # Get engineered features (7 features used by RF)
+    extra_feats = extract_features(raw_text, clean_text_str)  # array (7,)
     engineered_names = [
         "text_length", "word_count", "url_count", "has_url",
         "currency_mentioned", "exclamation_count", "digit_ratio"
     ]
-    all_names = list(tfidf_names) + engineered_names
     
-    # Get feature importances
+    # Get model's feature importances (global weights)
     if not hasattr(bundle.rf, "feature_importances_"):
-        return []
-    
-    importances = bundle.rf.feature_importances_
-    
-    # Ensure we have the right number of importances
-    if len(importances) != len(all_names):
-        logger.warning(f"Feature count mismatch: {len(importances)} vs {len(all_names)}")
-        # Just use TF-IDF features
-        all_names = list(tfidf_names)
-        importances = importances[:len(tfidf_names)]
-    
-    # Get top K
-    top_indices = np.argsort(importances)[::-1][:top_k]
+        # Fallback: just use values
+        tfidf_scores = tfidf_values
+        engineered_scores = extra_feats
+    else:
+        importances = bundle.rf.feature_importances_
+        
+        # Split importances: first len(tfidf_names) for TF-IDF, last 7 for engineered
+        tfidf_importances = importances[:len(tfidf_names)]
+        engineered_importances = importances[len(tfidf_names):len(tfidf_names)+7]
+        
+        # Combine: value * importance = relevance score
+        tfidf_scores = tfidf_values * tfidf_importances
+        engineered_scores = extra_feats * engineered_importances
     
     result = []
-    for idx in top_indices:
-        if idx < len(all_names):
-            result.append({
-                "term": str(all_names[idx]),
-                "weight": float(round(importances[idx], 4))
+    
+    # Add significant TF-IDF terms (words actually in the text)
+    non_zero_indices = np.where(tfidf_values > 0)[0]
+    if len(non_zero_indices) > 0:
+        sorted_indices = non_zero_indices[np.argsort(tfidf_scores[non_zero_indices])[::-1]]
+        top_tfidf = sorted_indices[:min(len(sorted_indices), 10)]  # Get more TF-IDF terms
+        
+        for idx in top_tfidf:
+            if idx < len(tfidf_names):
+                result.append({
+                    "term": str(tfidf_names[idx]),
+                    "weight": float(round(tfidf_scores[idx], 4))
+                })
+    
+    # If TF-IDF didn't find enough meaningful terms, look for spam keywords directly in text
+    spam_keywords = [
+        "free", "win", "prize", "congratulations", "money",
+        "click", "offer", "urgent", "credit", "bonus",
+        "cashback", "deal", "discount", "limited", "now"
+    ]
+    
+    text_lower = raw_text.lower()
+    found_keywords = []
+    for keyword in spam_keywords:
+        if keyword in text_lower:
+            # Estimate importance based on how "spammy" the keyword is
+            spam_weight = 0.05 if keyword in ["free", "win", "urgent", "act now", "guaranteed"] else 0.03
+            found_keywords.append({
+                "term": keyword,
+                "weight": spam_weight
             })
     
-    return result
+    # Add spam keywords to results (they're important indicators)
+    result.extend(found_keywords)
+    
+    # Add significant engineered features (with non-zero values)
+    # Skip text_length and word_count as they're not meaningful for users
+    for idx, (name, value, score) in enumerate(zip(engineered_names, extra_feats, engineered_scores)):
+        # Skip text_length and word_count - not useful for end users
+        if name in ["text_length", "word_count"]:
+            continue
+            
+        if value > 0 and score > 0.0001:  # Only show meaningful features
+            # Format the display nicely
+            if name == "has_url":
+                readable_name = "Contains URL"
+            elif name == "currency_mentioned":
+                readable_name = "Money/Currency Mentioned"
+            elif name == "url_count":
+                readable_name = f"URLs Found ({int(value)})"
+            elif name == "exclamation_count":
+                readable_name = f"Exclamation Marks ({int(value)})"
+            elif name == "digit_ratio":
+                readable_name = f"Number Characters ({value:.1%})"
+            else:
+                readable_name = name.replace("_", " ").title()
+            
+            result.append({
+                "term": readable_name,
+                "weight": float(round(score, 4))
+            })
+    
+    # Sort all by weight and return top K
+    result.sort(key=lambda x: x["weight"], reverse=True)
+    
+    # Remove duplicates (keep first occurrence)
+    seen_terms = set()
+    unique_results = []
+    for item in result:
+        term_lower = item["term"].lower()
+        if term_lower not in seen_terms:
+            seen_terms.add(term_lower)
+            unique_results.append(item)
+    
+    return unique_results[:top_k]
 
 def predict_one(text: str) -> Dict:
     # Load models
@@ -307,7 +382,7 @@ def predict_one(text: str) -> Dict:
             "label": "ham",
             "score": 0.0,
             "action": "allow",
-            "reasons": ["empty_text"],
+            "reasons": ["Empty or Invalid Text"],
             "ensemble": {
                 "rf": {"label": "ham", "score": 0.0},
                 "xgb": {"label": "ham", "score": 0.0}
@@ -318,33 +393,28 @@ def predict_one(text: str) -> Dict:
     
     # Get predictions from both models
     rf_label, rf_score = _rf_predict(text, cleaned, bundle)      # TF-IDF + 7 features
-    xgb_label, xgb_score = _xgb_predict(text, cleaned, bundle)   # 23 engineered features
+    xgb_label, xgb_score_raw = _xgb_predict(text, cleaned, bundle)   # 23 engineered features
+    
+    # Dampen XGBoost's confidence to reduce its influence
+    # Move XGBoost score closer to 0.5 (uncertainty) by 40%
+    # This makes XGBoost less aggressive in its predictions
+    dampening_factor = 0.4
+    xgb_score = 0.5 + (xgb_score_raw - 0.5) * (1 - dampening_factor)
+    xgb_label = "spam" if xgb_score >= 0.5 else "ham"  # Recalculate label after dampening
     
     # Get anomaly detection
     anomaly = _kmeans_anomaly(cleaned, bundle)
     
     # Calculate confidence for each model (distance from 0.5 = uncertainty)
-    # A score of 0.5 means the model is completely uncertain
-    # Scores near 0 or 1 mean the model is very confident
     rf_confidence = abs(rf_score - 0.5)
     xgb_confidence = abs(xgb_score - 0.5)
     
-    total_confidence = rf_confidence + xgb_confidence
+    # Use fixed 70-30 weighting favoring RF (with dampened XGB scores)
+    rf_weight_used = 0.70
+    xgb_weight_used = 0.30
     
-    # If both models are very uncertain (both scores near 0.5)
-    if total_confidence < 0.1:
-        # Use simple average when both uncertain
-        avg_score = (rf_score + xgb_score) / 2.0
-        rf_weight_used = 0.5
-        xgb_weight_used = 0.5
-    else:
-        # Weight by confidence: more confident model gets more weight
-        rf_weight = rf_confidence / total_confidence
-        xgb_weight = xgb_confidence / total_confidence
-        
-        avg_score = (rf_weight * rf_score) + (xgb_weight * xgb_score)
-        rf_weight_used = rf_weight
-        xgb_weight_used = xgb_weight
+    # Calculate weighted average score
+    avg_score = (rf_weight_used * rf_score) + (xgb_weight_used * xgb_score)
     
     avg_score = float(avg_score)
     final_label = "spam" if avg_score >= 0.5 else "ham"
@@ -352,36 +422,38 @@ def predict_one(text: str) -> Dict:
     # Decide action
     action = decide_action(avg_score)
     
-    # Generate reasons
+    # Generate user-friendly reasons
     reasons = []
-    if avg_score >= 0.85:
-        reasons.append("high_confidence_spam")
-    elif avg_score >= 0.7:
-        reasons.append("likely_spam")
-    elif avg_score >= 0.5:
-        reasons.append("possible_spam")
-    elif avg_score >= 0.3:
-        reasons.append("likely_legitimate")
-    else:
-        reasons.append("high_confidence_legitimate")
     
-    # Add agreement/disagreement
+    # Confidence level
+    if avg_score >= 0.85:
+        reasons.append("Very High Spam Probability")
+    elif avg_score >= 0.7:
+        reasons.append("High Spam Probability")
+    elif avg_score >= 0.5:
+        reasons.append("Likely Spam")
+    elif avg_score >= 0.3:
+        reasons.append("Likely Legitimate")
+    else:
+        reasons.append("Very Likely Legitimate")
+    
+    # Model agreement
     score_diff = abs(xgb_score - rf_score)
     if score_diff < 0.2:
-        reasons.append("models_agree")
+        reasons.append("Both Models Agree")
     elif score_diff < 0.4:
-        reasons.append("models_disagree_slightly")
+        reasons.append("Models Show Slight Disagreement")
     else:
-        reasons.append("models_disagree_strongly")
+        reasons.append("Models Show Strong Disagreement")
     
-    # Add confidence info
-    if rf_confidence > xgb_confidence:
-        reasons.append("rf_more_confident")
-    elif xgb_confidence > rf_confidence:
-        reasons.append("xgb_more_confident")
+    # Which model is more confident
+    if rf_confidence > xgb_confidence + 0.1:
+        reasons.append("Text Pattern Analysis is More Confident")
+    elif xgb_confidence > rf_confidence + 0.1:
+        reasons.append("Feature Analysis is More Confident")
     
-    # Get explanations (from RF only, as it has interpretable features)
-    explain = explain_from_rf(bundle, top_k=8)
+    # Get text-specific explanations (pass both raw and cleaned text)
+    explain = explain_from_rf(bundle, text, cleaned, top_k=8)
     
     return {
         "label": final_label,
@@ -398,6 +470,7 @@ def predict_one(text: str) -> Dict:
             "xgb": {
                 "label": xgb_label, 
                 "score": round(xgb_score, 4),
+                "raw_score": round(xgb_score_raw, 4),  # Show original before dampening
                 "confidence": round(xgb_confidence, 4),
                 "weight": round(xgb_weight_used, 4)
             }
@@ -737,12 +810,14 @@ def analyze_batch(items: List[str], max_workers: int = 4) -> Dict:
         "reasons": reason_counts,
         "top_spam_indicators": top_spam_indicators[:10],
 
+        # 🟢 Thêm hai trường chi tiết:
         "details": predictions,
         "indexed_details": [
             {"index": i, "text": items[i], **predictions[i]}
             for i in range(len(items))
         ]
     }
+
 
 
 
