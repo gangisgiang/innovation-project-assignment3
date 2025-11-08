@@ -9,10 +9,7 @@ router = APIRouter()
 @router.post("/predict-batch", response_model=List[PredictOut])
 def predict_batch_route(req: PredictBatchIn):
     """
-    Predict on multiple email texts (batch processing).
-    
-    Maximum 500 items per request.
-    Returns list of predictions in same order as input.
+    Run batch prediction on multiple email texts.
     """
     try:
         max_workers = min(8, max(2, len(req.items) // 10))
@@ -24,18 +21,10 @@ def predict_batch_route(req: PredictBatchIn):
             detail=f"Batch prediction failed: {str(e)}"
         )
 
-
 @router.post("/predict-batch/analyze")
 def analyze_batch_route(req: PredictBatchIn):
     """
-    Analyze a batch of messages and return comprehensive statistics.
-    
-    **Returns:**
-    - Overview (total, spam/ham counts, avg score)
-    - Score distribution
-    - Model agreement analysis
-    - Action recommendations
-    - Top spam indicators
+    Analyze a batch of messages and return statistical results.
     """
     try:
         max_workers = min(8, max(2, len(req.items) // 10))

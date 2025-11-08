@@ -52,3 +52,22 @@ class ModelInfoOut(BaseModel):
     features: int
     classes: List[str]
     version: str
+
+class Overview(BaseModel):
+    total_messages: int
+    spam_count: int
+    ham_count: int
+    avg_score: float
+
+class ModelAgreement(BaseModel):
+    agree: int
+    disagree: int
+    agreement_rate: float
+
+class AnalyzeOut(BaseModel):
+    overview: Overview
+    score_distribution: Dict[str, int]
+    model_agreement: ModelAgreement
+    actions: Dict[str, int]
+    reasons: Dict[str, int]
+    top_spam_indicators: List[FeatureItem]

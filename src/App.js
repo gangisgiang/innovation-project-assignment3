@@ -1,7 +1,9 @@
+// src/App.js
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import {
-  Typography, Container, Button, Box, TextField, CircularProgress, Chip, Switch, Alert, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid, Card, CardContent, LinearProgress
+  Typography, Container, Button, Box, TextField, CircularProgress, Chip, Switch, Alert, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid, Card, CardContent, LinearProgress, Snackbar
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 import {
   Assessment as AssessmentIcon,
@@ -17,13 +19,19 @@ import { ScoreDistributionBarChart, ScatterPlotChart, SpamHamPieChart } from './
 const hamColor = 'rgba(76,175,80,0.8)'; // green
 const spamColor = 'rgba(244,67,54,0.8)'; // red
 
+// Validation limits
+const MAX_TEXT_LEN = 10000;
+const MAX_BATCH = 200;
+
 function MainHeadings({ batchMode, colors }) {
+  // Responsive: adjust heading sizes by screen width
+  const isMdUp = useMediaQuery('(min-width:900px)');
   return (
-    <Box sx={{ mb: 2 }}>
-      <Typography variant="h2" component="h1" gutterBottom sx={{ color: colors.textColor }}>
+    <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
+      <Typography variant={isMdUp ? 'h3' : 'h5'} component="h1" gutterBottom sx={{ color: colors.textColor, lineHeight: 1.2 }}>
         Spam and Malware Detection System
       </Typography>
-      <Typography variant="h5" component="h2" gutterBottom sx={{ color: colors.textSecondary }}>
+      <Typography variant={isMdUp ? 'h5' : 'subtitle1'} component="h2" gutterBottom sx={{ color: colors.textSecondary }}>
         {batchMode
           ? 'Analyze multiple emails at once to detect spam and malware patterns.'
           : 'This application allows for the analysis of emails to detect potential spam and malware threats.'}
@@ -31,7 +39,6 @@ function MainHeadings({ batchMode, colors }) {
     </Box>
   );
 }
-
 
 function BasicSingleResults({ apiResult, darkMode, colors }) {
   if (!apiResult || apiResult.error) return null;
@@ -209,7 +216,6 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
   );
 }
 
-
 function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
   if (!batchAnalysis || !batchAnalysis.results) return null;
 
@@ -354,7 +360,6 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
     </Box>
   );
 }
-
 
 function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
   if (!batchAnalysis || !batchAnalysis.overview) return null;
@@ -517,7 +522,6 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
   );
 }
 
-
 function App() {
   const { darkMode, colors } = useContext(ThemeContext);
   const { addPrediction } = useContext(PredictionContext);
@@ -541,6 +545,12 @@ function App() {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
   const dividerWidth = 8;
+
+  // Snackbar state (global)
+  const [snackOpen, setSnackOpen] = useState(false);
+  const [snackMsg, setSnackMsg] = useState('');
+  const [snackSeverity, setSnackSeverity] = useState('error'); // 'error' | 'warning' | 'info' | 'success'
+  const openSnack = (msg, severity = 'error') => { setSnackMsg(msg); setSnackSeverity(severity); setSnackOpen(true); };
 
   const handleMouseDown = (e) => {
     setIsDragging(true);
@@ -593,7 +603,30 @@ function App() {
     };
   };
 
+  // Client-side validation helpers
+  const validateSingleText = (txt) => {
+    if (!txt || !txt.trim()) return 'Please enter some email text.';
+    if (txt.length > MAX_TEXT_LEN) return `Email text is too long (>${MAX_TEXT_LEN} characters).`;
+    return null;
+  };
+
+  const validateBatch = (raw) => {
+    const arr = raw.split('///').map(m => m.trim()).filter(Boolean);
+    if (arr.length === 0) return 'Please enter at least one email (use "///" to separate).';
+    if (arr.length > MAX_BATCH) return `Too many emails. Limit is ${MAX_BATCH}.`;
+    for (let i = 0; i < arr.length; i++) {
+      const t = arr[i];
+      if (!t) return `Email #${i + 1} is empty.`;
+      if (t.length > MAX_TEXT_LEN) return `Email #${i + 1} exceeds ${MAX_TEXT_LEN} characters.`;
+    }
+    return null;
+  };
+
   const handleBatchAnalyze = async () => {
+    // Validation before API — giống Single: dùng snackbar + KHÔNG disable nút
+    const vErr = validateBatch(batchInput);
+    if (vErr) { openSnack(vErr, 'warning'); setSplitVisible(false); return; }
+
     setBatchLoading(true);
     setBatchAnalysis(null);
     try {
@@ -606,8 +639,11 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: emailTexts }),
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || 'Batch prediction failed');
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const msg = data?.detail || data?.message || 'Batch prediction failed';
+        throw new Error(msg);
+      }
       setBatchAnalysis(batchAnalyzeMode ? data : { results: data });
       setSplitVisible(true);
 
@@ -628,7 +664,8 @@ function App() {
         }
       }
     } catch (err) {
-      setBatchAnalysis({ error: String(err) });
+      setBatchAnalysis({ error: String(err?.message || err) });
+      openSnack(String(err?.message || err), 'error');
     } finally {
       setBatchLoading(false);
     }
@@ -636,7 +673,7 @@ function App() {
 
   return (
     <>
-      <Box sx={{ bgcolor: colors.backgroundColor, minHeight: '100vh', py: 4 }}>
+      <Box sx={{ bgcolor: colors.backgroundColor, minHeight: '100vh', py: { xs: 2, md: 4 } }}>
         <Container maxWidth="xl">
           <MainHeadings batchMode={batchMode} colors={colors} />
 
@@ -657,7 +694,7 @@ function App() {
               sx={{
                 order: 0,
                 width: { xs: '100%', md: `calc((100% - ${dividerWidth}px) * ${leftWidth / 100})` },
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 maxHeight: { md: '80vh' },
                 overflowY: 'auto',
                 transition: isDragging ? 'none' : 'width 0.1s ease'
@@ -696,6 +733,8 @@ function App() {
                   </Typography>
                   <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
                     Separate multiple emails with <strong>///</strong> (three slashes on a new line)
+                    <br />
+                    <em>Limit: {MAX_BATCH} emails • Max {MAX_TEXT_LEN.toLocaleString()} chars per email</em>
                   </Alert>
                   <TextField
                     label="Batch Email Input"
@@ -716,16 +755,20 @@ function App() {
                       },
                     }}
                   />
-                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, gap: 2 }}>
                     <Typography variant="body2" sx={{ color: colors.textSecondary }}>
-                      {batchInput.split('///').filter(m => m.trim()).length} messages ready
+                      {batchInput.split('///').map(m => m.trim()).filter(Boolean).length} messages ready
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: colors.textDisabled }}>
+                      Longest: {Math.max(0, ...batchInput.split('///').map(t => (t?.length || 0)))} / {MAX_TEXT_LEN}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'block', mt: 2 }}>
                     <Button
                       variant="contained"
                       onClick={handleBatchAnalyze}
-                      disabled={batchLoading || !batchInput.trim()}
+                      // KHÔNG disable vì validation dùng Snackbar
+                      disabled={batchLoading}
                     >
                       {batchLoading ? 'Analyzing...' : 'Predict'}
                     </Button>
@@ -745,7 +788,7 @@ function App() {
                     label="Email text"
                     placeholder="Paste email body here"
                     multiline
-                    minRows={4}
+                    minRows={6}
                     fullWidth
                     value={apiInput}
                     onChange={(e) => setApiInput(e.target.value)}
@@ -758,11 +801,17 @@ function App() {
                         '&:hover fieldset': { borderColor: colors.borderHover },
                       },
                     }}
+                    helperText={`${apiInput.length}/${MAX_TEXT_LEN}`}
+                    FormHelperTextProps={{ sx: { color: colors.textDisabled } }}
                   />
                   <Box sx={{ display: 'block', mt: 1 }}>
                     <Button
                       variant="contained"
                       onClick={async () => {
+                        // Validation before API — Snackbar + KHÔNG disable
+                        const vErr = validateSingleText(apiInput);
+                        if (vErr) { openSnack(vErr, 'warning'); setSplitVisible(false); return; }
+
                         setSplitVisible(true);
                         try {
                           setApiLoading(true);
@@ -772,26 +821,33 @@ function App() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ text: apiInput }),
                           });
-                          const data = await resp.json();
-                          if (!resp.ok) throw new Error(data.detail || 'Prediction failed');
+                          const data = await resp.json().catch(() => ({}));
+                          if (!resp.ok) {
+                            const msg = data?.detail || data?.message || 'Prediction failed';
+                            throw new Error(msg);
+                          }
                           setApiResult(data);
                           if (!data.error) {
                             const prediction = constructPrediction({ ...data, text: apiInput });
                             addPrediction(prediction);
                           }
                         } catch (err) {
-                          setApiResult({ error: String(err) });
+                          setApiResult({ error: String(err?.message || err) });
+                          openSnack(String(err?.message || err), 'error');
                         } finally {
                           setApiLoading(false);
                         }
                       }}
                       aria-controls="split-right-pane"
+                      disabled={apiLoading} // chỉ disable khi đang chạy để tránh double-submit
                     >
                       Predict
                     </Button>
                   </Box>
                   {apiResult && apiResult.error && (
-                    <Typography color="error" sx={{ mt: 1 }}>Error: {apiResult.error}</Typography>
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {apiResult.error}
+                    </Alert>
                   )}
                 </>
               )}
@@ -829,7 +885,7 @@ function App() {
                 order: 0,
                 display: { xs: splitVisible ? 'block' : 'none', md: 'block' },
                 width: { xs: '100%', md: `calc((100% - ${dividerWidth}px) * ${(100 - leftWidth) / 100})` },
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 maxHeight: { md: '80vh' },
                 overflowY: 'auto',
                 transition: isDragging ? 'none' : 'width 0.1s ease'
@@ -896,6 +952,18 @@ function App() {
           </Box>
         </Container>
       </Box>
+
+      {/* Global Snackbar for validation/API errors */}
+      <Snackbar
+        open={snackOpen}
+        autoHideDuration={5000}
+        onClose={() => setSnackOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackOpen(false)} severity={snackSeverity} sx={{ width: '100%' }}>
+          {snackMsg}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
