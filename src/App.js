@@ -11,7 +11,7 @@ import {
 import Plot from 'react-plotly.js';
 import { ThemeContext } from './background';
 import { PredictionContext } from './PredictionProvider';
-import { ScoreDistributionBarChart, ScatterPlotChart, SpamHamPieChart } from './D3Charts';
+import { ScoreDistributionBarChart, ScatterPlotChart, SpamHamPieChart } from './BatchCharts';
 
 // Colours for chart
 const hamColor = 'rgba(76,175,80,0.8)'; // green

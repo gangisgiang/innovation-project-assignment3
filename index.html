@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SPECTER — Spam & Malware Detection</title>
+<style>
+  :root{
+    --bg: #0b1020;
+    --bg-soft: #0f152b;
+    --surface: #121a35;
+    --card: #151f42;
+    --accent: #6c8cff;
+    --accent-2: #00d1ff;
+    --text: #f4f7ff;
+    --muted: #b9c2e0;
+    --border: #223063;
+    --ok: #31d0aa;
+    --warn: #ffc85a;
+    --err: #ff6b6b;
+    --shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.03);
+    --radius-xl: 18px;
+    --radius: 14px;
+    --radius-sm: 10px;
+  }
+  [data-theme="light"]{
+    --bg:#f6f8ff;
+    --bg-soft:#eef2ff;
+    --surface:#ffffff;
+    --card:#ffffff;
+    --accent:#3d5cff;
+    --accent-2:#00a2ff;
+    --text:#111428;
+    --muted:#5a668a;
+    --border:#e6e9f5;
+    --ok:#15b388;
+    --warn:#d19a00;
+    --err:#e95555;
+    --shadow: 0 10px 30px rgba(17,20,40,.08), inset 0 1px 0 rgba(255,255,255,.8);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 800px at 85% -10%, rgba(108,140,255,.22), transparent 60%),
+      radial-gradient(900px 600px at -10% -10%, rgba(0,209,255,.18), transparent 55%),
+      linear-gradient(180deg, var(--bg-soft), var(--bg));
+    color:var(--text);
+    font:16px/1.6 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    letter-spacing:.2px;
+  }
+
+  /* NAV */
+  .nav{
+    position:sticky; top:0; z-index:50;
+    backdrop-filter: blur(10px);
+    background: color-mix(in oklab, var(--bg) 70%, transparent);
+    border-bottom:1px solid var(--border);
+  }
+  .nav-inner{
+    max-width:1200px; margin:auto; padding:14px 20px; display:flex; align-items:center; gap:16px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--text);
+    font-weight:800; letter-spacing:.4px;
+  }
+  .logo{
+    width:34px; height:34px; border-radius:10px;
+    background: conic-gradient(from 210deg, var(--accent), var(--accent-2), var(--accent));
+    box-shadow: 0 6px 20px color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  .nav-tabs{
+    margin-left:8px; display:flex; gap:8px;
+    padding:6px; border:1px solid var(--border); border-radius:999px;
+    background: color-mix(in oklab, var(--surface) 50%, transparent);
+  }
+  .tab{
+    padding:8px 14px; border-radius:999px; text-decoration:none; color:var(--muted);
+    font-weight:600;
+  }
+  .tab.is-active{ color:var(--text); background:var(--card); box-shadow:var(--shadow) }
+  .spacer{flex:1}
+  .toggle{
+    display:flex; align-items:center; gap:10px; padding:6px 10px; border:1px solid var(--border);
+    border-radius:999px; background:var(--surface)
+  }
+  .switch{appearance:none; width:42px; height:24px; border-radius:999px; position:relative; background:#6b7280; outline:none; cursor:pointer; transition:.2s}
+  .switch:checked{ background: var(--accent) }
+  .switch:before{
+    content:""; position:absolute; inset:3px auto 3px 3px; width:18px; border-radius:50%;
+    background:#fff; transition:.2s; box-shadow:0 2px 6px rgba(0,0,0,.25)
+  }
+  .switch:checked:before{ transform: translateX(18px) }
+
+  /* HERO */
+  .hero{
+    max-width:1200px; margin:24px auto 0; padding:34px 20px 8px;
+  }
+  .hero-card{
+    display:grid; grid-template-columns: 1.2fr .8fr; gap:24px; align-items:stretch;
+    background: linear-gradient(180deg, color-mix(in oklab, var(--surface) 75%, transparent), color-mix(in oklab, var(--surface) 95%, transparent));
+    border:1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow); padding:28px;
+  }
+  @media (max-width: 960px){ .hero-card{ grid-template-columns: 1fr } }
+
+  .headline{
+    font-size:34px; line-height:1.15; margin:0 0 8px; font-weight:900;
+  }
+  .sub{ color:var(--muted); margin-bottom:18px }
+  .pills{ display:flex; gap:10px; background:var(--bg-soft); border:1px solid var(--border);
+    border-radius:999px; padding:6px; width:max-content;
+  }
+  .pill{
+    padding:8px 14px; border-radius:999px; font-weight:700; cursor:pointer; color:var(--muted);
+  }
+  .pill.is-active{ background:var(--card); color:var(--text); box-shadow: var(--shadow) }
+  .kbd{
+    display:inline-flex; align-items:center; gap:6px;
+    border:1px dashed var(--border); color:var(--muted); padding:6px 10px; border-radius:10px; font-size:12px
+  }
+
+  /* LAYOUT BODY */
+  .wrap{ max-width:1200px; margin: 14px auto; padding: 0 20px 40px }
+  .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:20px }
+  @media (max-width: 960px){ .grid{ grid-template-columns:1fr } }
+
+  .panel{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow); padding:18px }
+  .panel h3{ margin:6px 0 14px; font-size:18px }
+  .row{ display:flex; gap:12px; align-items:center; justify-content:space-between }
+
+  textarea{
+    width:100%; min-height:170px; resize:vertical;
+    background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:14px;
+    padding:16px 14px; outline:none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+  }
+  .hint{ color:var(--muted); font-size:13px; margin-top:8px }
+
+  .btn{
+    appearance:none; border:none; border-radius:12px; padding:12px 16px;
+    color:#fff; font-weight:800; letter-spacing:.3px; cursor:pointer; transition:transform .06s ease, filter .2s ease;
+    background:
+      radial-gradient(120% 150% at 90% -20%, color-mix(in oklab, #fff 22%, transparent), transparent 50%),
+      linear-gradient(90deg, var(--accent), var(--accent-2));
+    box-shadow: 0 8px 18px color-mix(in oklab, var(--accent) 28%, transparent);
+  }
+  .btn:active{ transform: translateY(1px) }
+  .btn.secondary{
+    background: none; color:var(--text); border:1px solid var(--border); box-shadow:none
+  }
+  .btn.icon{ display:inline-flex; align-items:center; gap:10px }
+
+  /* RESULT CARD */
+  .result{
+    display:grid; grid-template-columns:.8fr 1.2fr; gap:18px;
+    background: linear-gradient(180deg, color-mix(in oklab, var(--card) 90%, transparent), color-mix(in oklab, var(--card) 80%, transparent));
+    border:1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow); padding:18px;
+  }
+  @media (max-width: 960px){ .result{ grid-template-columns:1fr } }
+  .badge{
+    display:inline-flex; align-items:center; gap:10px; padding:8px 12px; border-radius:999px; font-weight:800; font-size:13px
+  }
+  .badge.ok{ background: color-mix(in oklab, var(--ok) 22%, transparent); color:#eafff8; border:1px solid color-mix(in oklab, var(--ok) 45%, transparent)}
+  .badge.err{ background: color-mix(in oklab, var(--err) 18%, transparent); color:#ffecec; border:1px solid color-mix(in oklab, var(--err) 45%, transparent)}
+  .badge.warn{ background: color-mix(in oklab, var(--warn) 18%, transparent); color:#fff6e3; border:1px solid color-mix(in oklab, var(--warn) 45%, transparent)}
+
+  .score{
+    font-size:40px; font-weight:900; letter-spacing:.5px; margin:4px 0 2px
+  }
+  .small{ font-size:12px; color:var(--muted) }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:8px }
+  .chip{
+    border:1px solid var(--border); padding:6px 10px; border-radius:999px; color:var(--muted); background:color-mix(in oklab, var(--surface) 55%, transparent);
+    font-weight:600; font-size:12px
+  }
+
+  /* HISTORY */
+  .history{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px }
+  @media (max-width: 1100px){ .history{ grid-template-columns:repeat(2,1fr) } }
+  @media (max-width: 720px){ .history{ grid-template-columns:1fr } }
+  .h-card{
+    background: var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; box-shadow:var(--shadow)
+  }
+  .h-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; color:var(--muted) }
+
+  /* FOOTER */
+  .footer{
+    max-width:1200px; margin: 40px auto 50px; padding: 0 20px;
+    color:var(--muted); font-size:13px; display:flex; justify-content:space-between; align-items:center
+  }
+  .links a{ color:var(--muted); text-decoration:none; margin-right:14px }
+</style>
+</head>
+<body>
+  <!-- NAV -->
+  <div class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="#">
+        <div class="logo" aria-hidden="true"></div>
+        <span>SPECTER</span>
+      </a>
+      <div class="nav-tabs" role="tablist" aria-label="Site sections">
+        <a class="tab is-active" href="#home">Home</a>
+        <a class="tab" href="#history">History</a>
+        <a class="tab" href="#about">About</a>
+      </div>
+      <div class="spacer"></div>
+      <div class="toggle">
+        <span class="mono">Dark</span>
+        <input id="themeSwitch" class="switch" type="checkbox" aria-label="Toggle light/dark theme"/>
+        <span class="mono">Light</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero" id="home">
+    <div class="hero-card">
+      <div>
+        <p class="kbd">COS30049 • Machine Learning • FastAPI • React</p>
+        <h1 class="headline">Spam & Malware Detection — nhanh, rõ ràng, có giải thích.</h1>
+        <p class="sub">Phân tích nội dung email bằng mô hình ensemble (RF + XGBoost). Trả về nhãn, điểm tin cậy và lý do bị flag.</p>
+
+        <div class="pills" role="tablist" aria-label="Mode">
+          <button id="pillSingle" class="pill is-active" aria-selected="true">Single</button>
+          <button id="pillBatch" class="pill" aria-selected="false">Batch</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Quick Tips</h3>
+        <ul class="mono">
+          <li>Enter để xuống dòng — Shift+Enter để tách đoạn.</li>
+          <li>Dùng ký hiệu <strong>///</strong> để ngăn cách các email ở chế độ Batch.</li>
+          <li>Export lịch sử ở mục <em>History</em>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN -->
+  <main class="wrap">
+    <div class="grid">
+      <!-- INPUT PANEL -->
+      <div class="panel">
+        <div class="row">
+          <h3 id="modeTitle">Nhập nội dung (Single)</h3>
+          <div>
+            <button class="btn secondary icon" id="btnClear" title="Xoá">
+              <!-- trash icon -->
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <textarea id="inputBox" placeholder="Dán nội dung email vào đây để thử giao diện mới...&#10;Ví dụ: Congratulations! You’ve won a free gift card. Click here to claim your prize."></textarea>
+        <div class="hint" id="hint">Chế độ Single: bấm Predict để xem card kết quả. (Batch: ngăn cách email bằng ///)</div>
+
+        <div class="row" style="margin-top:14px">
+          <button class="btn icon" id="btnPredict">
+            <!-- spark icon -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2v5M12 17v5M4.22 4.22l3.54 3.54M16.24 16.24l3.54 3.54M2 12h5M17 12h5M4.22 19.78l3.54-3.54M16.24 7.76l3.54-3.54" stroke="white" stroke-width="1.7" stroke-linecap="round"/></svg>
+            Predict
+          </button>
+          <button class="btn secondary icon" id="btnDummy">
+            <!-- eye -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.7"/></svg>
+            Demo data
+          </button>
+        </div>
+      </div>
+
+      <!-- RESULT PANEL -->
+      <div class="panel">
+        <div class="row">
+          <h3>Kết quả</h3>
+          <div class="mono" id="summaryMini">—</div>
+        </div>
+
+        <div class="result" id="resultCard" hidden>
+          <div>
+            <div id="labelBadge" class="badge ok">HAM • Allow</div>
+            <div class="score" id="scoreText">95.2%</div>
+            <div class="small">Confidence score</div>
+            <div style="margin-top:14px">
+              <span class="small">Action:</span>
+              <span class="badge ok" id="actionBadge">ALLOW</span>
+            </div>
+          </div>
+          <div>
+            <div class="small" style="margin-bottom:8px">Key indicators</div>
+            <div class="chips" id="chips"></div>
+            <div class="small" style="margin-top:14px">Model ensemble</div>
+            <div class="chips" id="ensemble">
+              <span class="chip">RF: 0.91 (ham)</span>
+              <span class="chip">XGB: 0.97 (ham)</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="placeholder" style="padding:22px; border:1px dashed var(--border); border-radius:14px; color:var(--muted)">
+          Chưa có kết quả. Nhập nội dung rồi bấm <strong>Predict</strong>.
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <section id="history" style="margin-top:26px">
+      <div class="row" style="margin-bottom:10px">
+        <h3>Lịch sử gần đây</h3>
+        <button class="btn secondary icon" id="btnExport">
+          <!-- download -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Export CSV
+        </button>
+      </div>
+      <div class="history" id="historyGrid"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>© 2025 SPECTER — student-built AI security project.</div>
+    <div class="links">
+      <a href="#about">About</a>
+      <a href="#home">Docs</a>
+      <a href="#history">Changelog</a>
+    </div>
+  </footer>
+
+<script>
+  // THEME
+  const root = document.documentElement;
+  const themeSwitch = document.getElementById('themeSwitch');
+  const savedTheme = localStorage.getItem('specter-theme') || 'dark';
+  if(savedTheme === 'light'){ root.setAttribute('data-theme','light'); themeSwitch.checked = true; }
+  themeSwitch.addEventListener('change',()=>{
+    const mode = themeSwitch.checked ? 'light' : 'dark';
+    root.setAttribute('data-theme', mode);
+    localStorage.setItem('specter-theme', mode);
+  });
+
+  // MODE PILLS
+  const pillSingle = document.getElementById('pillSingle');
+  const pillBatch  = document.getElementById('pillBatch');
+  const inputBox   = document.getElementById('inputBox');
+  const hint       = document.getElementById('hint');
+  const modeTitle  = document.getElementById('modeTitle');
+  let mode = 'single';
+
+  function setMode(m){
+    mode = m;
+    pillSingle.classList.toggle('is-active', m==='single');
+    pillBatch.classList.toggle('is-active', m==='batch');
+    modeTitle.textContent = m==='single' ? 'Nhập nội dung (Single)' : 'Nhập nội dung (Batch)';
+    hint.innerHTML = m==='single'
+      ? 'Chế độ Single: bấm Predict để xem card kết quả.'
+      : 'Chế độ Batch: ngăn cách mỗi email bằng <strong>///</strong>.';
+    inputBox.placeholder = m==='single'
+      ? 'Dán nội dung email vào đây...'
+      : 'Email 1 ...\n///\nEmail 2 ...\n///\nEmail 3 ...';
+  }
+  pillSingle.onclick = ()=>setMode('single');
+  pillBatch.onclick  = ()=>setMode('batch');
+
+  // DEMO PREDICT (mock UI)
+  const resultCard  = document.getElementById('resultCard');
+  const placeholder = document.getElementById('placeholder');
+  const labelBadge  = document.getElementById('labelBadge');
+  const actionBadge = document.getElementById('actionBadge');
+  const scoreText   = document.getElementById('scoreText');
+  const chips       = document.getElementById('chips');
+  const ensemble    = document.getElementById('ensemble');
+  const summaryMini = document.getElementById('summaryMini');
+
+  const btnPredict  = document.getElementById('btnPredict');
+  const btnDummy    = document.getElementById('btnDummy');
+  const btnClear    = document.getElementById('btnClear');
+
+  const historyGrid = document.getElementById('historyGrid');
+  const btnExport   = document.getElementById('btnExport');
+  const history = [];
+
+  function rand(min,max){ return Math.random()*(max-min)+min }
+
+  function pushHistory(item){
+    history.unshift(item);
+    if(history.length>9) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory(){
+    historyGrid.innerHTML = '';
+    history.forEach((h,i)=>{
+      const el = document.createElement('div');
+      el.className = 'h-card';
+      el.innerHTML = `
+        <div class="h-head">
+          <div class="mono">#${i+1} • ${new Date(h.ts).toLocaleTimeString()}</div>
+          <div class="badge ${h.label==='spam'?'err':'ok'}">${h.label.toUpperCase()} • ${h.action.toUpperCase()}</div>
+        </div>
+        <div class="mono" style="margin:8px 0 6px">Score: ${(h.score*100).toFixed(1)}%</div>
+        <div class="mono" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${h.text.replace(/\n/g,' ')}</div>
+      `;
+      historyGrid.appendChild(el);
+    });
+  }
+
+  function exportCSV(){
+    const rows = [['time','label','score','action','text']].concat(
+      history.map(h=>[new Date(h.ts).toISOString(), h.label, h.score.toFixed(4), h.action, h.text.replace(/"/g,'""')])
+    );
+    const csv = rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'specter-history.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  btnExport.onclick = exportCSV;
+
+  function setResult(data){
+    placeholder.hidden = true;
+    resultCard.hidden = false;
+    const isSpam = data.label === 'spam';
+    labelBadge.textContent = `${isSpam?'SPAM':'HAM'} • ${data.action.toUpperCase()}`;
+    labelBadge.className = `badge ${isSpam?'err':'ok'}`;
+    actionBadge.textContent = data.action.toUpperCase();
+    actionBadge.className = `badge ${data.action==='block'?'err':data.action==='quarantine'?'warn':'ok'}`;
+    scoreText.textContent = (data.score*100).toFixed(1)+'%';
+    chips.innerHTML = '';
+    (data.reasons || ['free offer','suspicious link','urgent language']).slice(0,10).forEach(t=>{
+      const c = document.createElement('span'); c.className='chip'; c.textContent = t; chips.appendChild(c);
+    });
+    ensemble.innerHTML = '';
+    Object.entries(data.ensemble || {rf:{score:.83,label:isSpam?'spam':'ham'}, xgb:{score:.91,label:isSpam?'spam':'ham'}})
+      .forEach(([k,v])=>{
+        const c = document.createElement('span'); c.className='chip';
+        c.textContent = `${k.toUpperCase()}: ${(v.score*100).toFixed(1)}% (${v.label})`; ensemble.appendChild(c);
+      });
+    summaryMini.textContent = `${isSpam?'Spam':'Ham'} • ${(data.score*100).toFixed(1)}% • ${data.action}`;
+  }
+
+  btnPredict.onclick = ()=>{
+    const txt = inputBox.value.trim();
+    if(!txt){ alert('Nhập nội dung trước đã nha!'); return; }
+
+    // MOCK logic: nếu text có "free" / "click" → spam
+    const s = /free|click|gift|prize|win|credit/i.test(txt) ? rand(.75,.95) : rand(.05,.35);
+    const label = s>0.5 ? 'spam' : 'ham';
+    const action = label==='spam' ? (s>.85?'block':'quarantine') : 'allow';
+
+    const data = { label, score:s, action, text:txt, reasons: label==='spam' ? ['free offer','call-to-action','suspicious link'] : ['normal tone','no link','known contact'] };
+    setResult(data);
+    pushHistory({ ts:Date.now(), label, score:s, action, text:txt });
+  };
+
+  btnDummy.onclick = ()=>{
+    inputBox.value = "Congratulations! You’ve won a free gift card. Click here to claim your prize.";
+  }
+
+  btnClear.onclick = ()=>{
+    inputBox.value = '';
+  }
+
+  // default render mode
+  setMode('single');
+</script>
+</body>
+</html>
