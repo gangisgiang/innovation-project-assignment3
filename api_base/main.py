@@ -19,13 +19,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Expose a debug flag in app.state (avoid using non-existent app.debug)
+# Expose a debug flag in app.state
 app.state.DEBUG = os.getenv("DEBUG", "0") in {"1", "true", "True"}
 
-# Use uvicorn's logger if present so messages surface in the server console
+# Use uvicorn's logger
 logger = logging.getLogger("uvicorn.error")
 if not logger.handlers:
-    # Fallback basicConfig if running without uvicorn
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -40,6 +39,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ========== Custom Exception Class ==========
+class APIException(Exception):
+    """Custom exception with status code and details."""
+    def __init__(self, error: str, message: str, status_code: int = 400, details=None):
+        self.error = error
+        self.message = message
+        self.status_code = status_code
+        self.details = details
+        super().__init__(message)
+
+
+# ========== Root Routes ==========
 @app.get("/")
 def root():
     return {
@@ -55,23 +67,26 @@ def root():
         ]
     }
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-# Routers
+
+# ========== Include Routers ==========
 app.include_router(predict_router, tags=["Prediction"])
 app.include_router(batch_router, tags=["Batch"])
 app.include_router(info_router, tags=["Model Info"])
 app.include_router(history_router, tags=["History"])
 
+
+# ========== Error Payload Helper ==========
 def _error_payload(request: Request, error: str, message: str, status_code: int, details=None):
-    """
-    Build a consistent error JSON body.
-    """
+    """Build a consistent error JSON body."""
     return {
-        "error": error,                         # machine-friendly code
-        "message": message,                     # human-friendly message
+        "success": False,
+        "error": error,
+        "message": message,
         "status_code": status_code,
         "path": str(request.url.path),
         "method": request.method,
@@ -79,12 +94,27 @@ def _error_payload(request: Request, error: str, message: str, status_code: int,
         "details": details,
     }
 
+
+# ========== Exception Handlers ==========
+
+@app.exception_handler(APIException)
+async def api_exception_handler(request: Request, exc: APIException):
+    """Handle custom API exceptions."""
+    payload = _error_payload(
+        request=request,
+        error=exc.error,
+        message=exc.message,
+        status_code=exc.status_code,
+        details=exc.details,
+    )
+    log_fn = logger.warning if 400 <= exc.status_code < 500 else logger.error
+    log_fn(f"APIException {exc.status_code}: {exc.message} | {request.method} {request.url}")
+    return JSONResponse(status_code=exc.status_code, content=payload)
+
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """
-    Standardizes HTTPException responses from Starlette/FastAPI.
-    """
-    # exc.detail can be str or dict; normalize the outward shape
+    """Standardize HTTPException responses from Starlette/FastAPI."""
     message = exc.detail if isinstance(exc.detail, str) else "HTTP error"
     payload = _error_payload(
         request=request,
@@ -93,31 +123,43 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         status_code=exc.status_code,
         details=None if isinstance(exc.detail, str) else exc.detail,
     )
-    # Only warn for 4xx, error for 5xx
     log_fn = logger.warning if 400 <= exc.status_code < 500 else logger.error
     log_fn(f"HTTPException {exc.status_code}: {message} | {request.method} {request.url}")
     return JSONResponse(status_code=exc.status_code, content=payload)
 
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
-    """
-    Handles validation errors raised during request parsing/validation.
-    """
+    """Handle validation errors with field-level details."""
+    
+    # Map Pydantic errors to structured details
+    details = []
+    for error in exc.errors():
+        # Extract field name from location tuple
+        field = ".".join(str(loc) for loc in error["loc"][1:]) if len(error["loc"]) > 1 else None
+        
+        details.append({
+            "field": field,
+            "message": error["msg"],
+            "type": error["type"],
+            "input": error.get("input"),  # Show what was received (optional)
+        })
+    
     payload = _error_payload(
         request=request,
         error="validation_error",
-        message="Invalid input data",
+        message=f"Invalid input: {len(details)} error(s) found",
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        details=exc.errors(),
+        details=details,
     )
-    logger.warning(f"Validation error: {request.method} {request.url} | {exc.errors()}")
+    
+    logger.warning(f"Validation error: {request.method} {request.url} | {details}")
     return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=payload)
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """
-    Catch-all for unhandled exceptions.
-    """
+    """Catch-all for unhandled exceptions."""
     # Log full traceback
     logger.error(f"Unhandled exception at {request.method} {request.url}", exc_info=True)
 

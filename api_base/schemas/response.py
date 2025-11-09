@@ -1,7 +1,7 @@
 # app/schemas/response.py
 
 from typing import Optional, List, Dict, Any, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 class FeatureItem(BaseModel):
     """A single feature contribution used for explainability (e.g., SHAP/weights)."""
@@ -90,6 +90,8 @@ class AnalyzeOut(BaseModel):
     - actions/reasons: counts per action/reason
     - top_spam_indicators: highest-weighted indicative features
     """
+    model_config = ConfigDict(protected_namespaces=())
+
     overview: Overview
     score_distribution: Dict[str, int]
     model_agreement: ModelAgreement

@@ -12,24 +12,24 @@ class PredictIn(BaseModel):
         }
 
 class PredictBatchIn(BaseModel):
-    """Basic batch prediction request"""
-    items: List[str] = Field(
-        ..., 
-        min_length=1, 
-        max_length=500, 
-        description="List of email texts to classify"
-    )
-
+    items: List[str] = Field(..., min_length=1, max_length=500)
+    
     @validator('items')
     def validate_items(cls, v):
-        # Check each item
         for i, item in enumerate(v):
             if not isinstance(item, str):
                 raise ValueError(f"Item {i} must be a string")
             if len(item) == 0:
                 raise ValueError(f"Item {i} cannot be empty")
             if len(item) > 10000:
-                raise ValueError(f"Item {i} exceeds maximum length of 10000 characters")
+                raise ValueError(f"Item {i} exceeds 10,000 character limit")
+        
+        # ✅ NEW: Check total batch size
+        total_chars = sum(len(item) for item in v)
+        if total_chars > 1_000_000:  # 1MB limit
+            raise ValueError(
+                f"Total batch size ({total_chars:,} chars) exceeds 1MB limit"
+            )  
         return v
 
     class Config:

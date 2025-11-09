@@ -15,15 +15,8 @@ import uuid
 
 router = APIRouter(prefix="/history", tags=["History"])
 
-# -----------------------------------------------------------------------------
-# In-memory store (non-persistent)
-# -----------------------------------------------------------------------------
 HISTORY: List[Dict[str, Any]] = []
 
-
-# -----------------------------------------------------------------------------
-# Models
-# -----------------------------------------------------------------------------
 class HistoryItem(BaseModel):
     id: str
     label: Literal["spam", "ham"]
@@ -51,10 +44,6 @@ class Feedback(BaseModel):
     label: Optional[Literal["spam", "ham"]] = None
     comment: Optional[str] = None  # kept for flexibility if you store it
 
-
-# -----------------------------------------------------------------------------
-# Helpers
-# -----------------------------------------------------------------------------
 def _parse_iso_to_dt(s: str) -> Optional[datetime]:
     if not s:
         return None
@@ -220,6 +209,10 @@ def get_history(
             "total": total,
             "limit": limit,
             "offset": offset,
+            "has_next": offset + limit < total,
+            "has_prev": offset > 0,
+            "page": (offset // limit) + 1,
+            "total_pages": (total + limit - 1) // limit,
         }
     )
 

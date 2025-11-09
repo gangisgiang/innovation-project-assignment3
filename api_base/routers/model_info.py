@@ -1,6 +1,7 @@
 # routers/model_info.py
 from fastapi import APIRouter
 from ..loaders.model_loader import get_bundle
+import os
 
 router = APIRouter(prefix="/model", tags=["Model Info"])
 
@@ -12,15 +13,13 @@ def get_model_info():
     """
     bundle = get_bundle()
 
-    # Các số liệu kỹ thuật
     tfidf_vocab_size = getattr(bundle, "rf_vectorizer", None)
     tfidf_vocab_size = getattr(tfidf_vocab_size, "vocabulary_", None)
     tfidf_vocab_size = len(tfidf_vocab_size) if tfidf_vocab_size else None
 
-    rf_engineered_features = 7   # đúng theo pipeline RF
-    xgb_feature_count = 23       # đúng theo pipeline XGB
+    rf_engineered_features = 7 
+    xgb_feature_count = 23  
 
-    # Metrics cho từng model (đưa đúng số bạn có)
     xgb_metrics = {
         "accuracy": 0.9495,
         "precision": 0.9717,
@@ -36,7 +35,6 @@ def get_model_info():
         "auc": 0.9960
     }
 
-    # Tagline an toàn (không lộ version/timestamp)
     tagline = "Calibrated ensemble blending pattern-based and engineered signals for dependable spam & phishing detection."
 
     return {
