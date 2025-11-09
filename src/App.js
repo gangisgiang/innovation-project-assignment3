@@ -644,7 +644,20 @@ function App() {
         const msg = data?.detail || data?.message || 'Batch prediction failed';
         throw new Error(msg);
       }
-      setBatchAnalysis(batchAnalyzeMode ? data : { results: data });
+      if (batchAnalyzeMode) {
+        // Analyze mode returns AnalyzeOut wrapped
+        setBatchAnalysis(data.success && data.data ? data.data : data);
+      } else {
+        // Basic mode returns BatchOut wrapped
+        if (data.success && data.data && data.data.predictions) {
+          setBatchAnalysis({ results: data.data.predictions });
+        } else if (Array.isArray(data)) {
+          // Fallback for old unwrapped format
+          setBatchAnalysis({ results: data });
+        } else {
+          throw new Error('Invalid batch response format');
+        }
+      }
       setSplitVisible(true);
 
       if (!data.error) {

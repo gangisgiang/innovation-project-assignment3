@@ -225,11 +225,15 @@ function DeleteButtonWithHint({ disabled, onClick, top = { xs: 6, sm: 10 }, righ
 // ── API helpers
 async function apiGetHistory() {
   const resp = await fetch(`${API_BASE}/history`);
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(data?.detail || data?.message || 'Failed to fetch history');
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(payload?.detail || payload?.message || 'Failed to fetch history');
 
-  const raw = Array.isArray(data) ? data : (data.items || []);
-  return raw.map((it) => {
+  // Hỗ trợ mọi kiểu payload: success_response, mảng trần, hay {items:[]}
+  const items =
+    payload?.data?.items ??
+    (Array.isArray(payload) ? payload : (payload?.items ?? []));
+
+  return items.map((it) => {
     const ensemble = it.ensemble || {};
     return {
       id: it.id ?? it.record_id ?? it._id ?? null,
@@ -247,6 +251,7 @@ async function apiGetHistory() {
     };
   });
 }
+
 
 async function apiDeleteHistory(id) {
   const resp = await fetch(`${API_BASE}/history/${id}`, { method: 'DELETE' });
