@@ -11,12 +11,13 @@ import {
   Menu,
   MenuItem,
   IconButton,
-  Tooltip,
   Snackbar,
   Alert,
+  Tooltip,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -29,11 +30,14 @@ import {
   PointElement
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
+
 import { ThemeContext } from './background';
 import { PredictionContext } from './PredictionProvider';
+
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import DeleteOutline from '@mui/icons-material/DeleteOutline';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+
 import * as d3 from 'd3';
 
 // ── Chart.js register
@@ -53,7 +57,7 @@ const API_BASE = 'http://localhost:8000';
 const CHART_LIMIT = 20; // charts + bubble + recents
 
 // ─────────────────────────────────────────────────────────────
-// Float look components: glassy + soft glow shadow underneath
+// Float look components: glassy + soft glow underneath
 // ─────────────────────────────────────────────────────────────
 function FloatPaper({ children, sx = {}, darkMode, ...rest }) {
   const base = {
@@ -102,26 +106,119 @@ function FloatCard({ children, sx = {}, darkMode, ...rest }) {
     boxShadow: darkMode
       ? '0 10px 26px rgba(0,0,0,0.32), 0 1px 4px rgba(0,0,0,0.22)'
       : '0 10px 26px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)',
-    overflow: 'hidden',
-    '&::after': {
-      content: '""',
-      position: 'absolute',
-      left: 18,
-      right: 18,
-      bottom: -10,
-      height: 20,
-      borderRadius: '50%',
-      background: darkMode
-        ? 'radial-gradient(60% 60% at 50% 0%, rgba(0,0,0,0.3), rgba(0,0,0,0))'
-        : 'radial-gradient(60% 60% at 50% 0%, rgba(0,0,0,0.14), rgba(0,0,0,0))',
-      filter: 'blur(7px)',
-      pointerEvents: 'none'
-    }
+    overflow: 'visible', // để hint không bị cắt
   };
   return (
     <Card elevation={0} sx={{ ...base, ...sx }} {...rest}>
       {children}
     </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Responsive export control: icon on phones, button on larger
+// ─────────────────────────────────────────────────────────────
+function ResponsiveExportButton({ title = 'Export', onClick, isMobile, outlined = true }) {
+  if (isMobile) {
+    return (
+      <Tooltip title={title}>
+        <IconButton
+          size="small"
+          onClick={onClick}
+          sx={{ border: outlined ? '1px solid' : 'none', borderColor: 'divider' }}
+        >
+          <FileDownloadIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip title={title}>
+      <Button
+        size="small"
+        startIcon={<FileDownloadIcon />}
+        variant={outlined ? 'outlined' : 'contained'}
+        onClick={onClick}
+        sx={{
+          minWidth: 0,
+          px: 1.25,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }}
+      >
+        {title.toUpperCase()}
+      </Button>
+    </Tooltip>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Delete button with custom tooltip (bám sát icon, không lệch)
+// ─────────────────────────────────────────────────────────────
+function DeleteButtonWithHint({ disabled, onClick, top = { xs: 6, sm: 10 }, right = { xs: 6, sm: 10 } }) {
+  return (
+    <Box sx={{ position: 'absolute', top, right, zIndex: 2 }}>
+      <Box
+        sx={{
+          position: 'relative',
+          display: 'inline-block',
+          '&:hover .delete-hint, &:focus-within .delete-hint': {
+            opacity: 1,
+            transform: 'translateY(-50%) translateX(0)'
+          }
+        }}
+      >
+        <IconButton
+          aria-label="delete-record"
+          size="small"
+          color="error"
+          disabled={disabled}
+          onClick={onClick}
+          sx={{
+            backgroundColor: 'rgba(244,67,54,0.06)',
+            '&:hover': { backgroundColor: 'rgba(244,67,54,0.12)' },
+            transition: 'background-color 0.2s ease'
+          }}
+        >
+          <DeleteOutline />
+        </IconButton>
+
+        {/* Tooltip tự code – luôn bám sát icon */}
+        <Box
+          className="delete-hint"
+          sx={{
+            position: 'absolute',
+            right: 'calc(100% + 8px)',   // sát bên trái icon 8px
+            top: '50%',
+            transform: 'translateY(-50%) translateX(6px)', // lúc ẩn lùi nhẹ
+            px: 1,
+            py: 0.5,
+            bgcolor: 'rgba(97,97,97,0.92)',
+            color: '#fff',
+            borderRadius: 1,
+            fontSize: '12px',
+            lineHeight: 1.2,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            opacity: 0,
+            transition: 'opacity .15s ease, transform .15s ease',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              left: '100%',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              borderWidth: '6px',
+              borderStyle: 'solid',
+              borderColor: 'transparent transparent transparent rgba(97,97,97,0.92)'
+            }
+          }}
+        >
+          Delete this record from server history
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -161,7 +258,7 @@ async function apiDeleteHistory(id) {
 /** ─────────────────────────────────────────────────────────────
  *  Zoomable + wrapped-labels Bubble Chart (D3)
  *  - Scroll to zoom, drag to pan, double-click to reset
- *  - On-canvas + / − / ⟲ buttons
+ *  - On-canvas + / − / ⟲ buttons (anchored top-right)
  *  - Wrapped labels up to 3 lines (ellipsis if truncated)
  *  - Hover tooltip with term + stats
  *  - chartRef.current → <svg> (for PNG/SVG export)
@@ -214,7 +311,7 @@ function ReasonsBubbleChart({ data, chartRef, darkMode }) {
 
     circles.transition().duration(800).delay((d, i) => i * 20).attr('r', d => d.r);
 
-    // Tooltip
+    // Tooltip (native HTML)
     circles.on('mouseenter', function (event, d) {
       d3.select(this).transition().duration(150)
         .attr('r', d.r * 1.15).style('opacity', 1).attr('stroke-width', 2.5);
@@ -342,10 +439,12 @@ function ReasonsBubbleChart({ data, chartRef, darkMode }) {
       svg.transition().duration(350).call(zoom.transform, d3.zoomIdentity);
     });
 
-    // On-canvas controls
+    // On-canvas controls (anchored top-right inside svg)
+    const CTRL_WIDTH = 96; // 3 * 32
+    const PADDING = 12;
     const ctrl = gRoot.append('g')
       .attr('class', 'zoom-controls')
-      .attr('transform', 'translate(12,12)');
+      .attr('transform', `translate(${width - CTRL_WIDTH - PADDING}, ${PADDING})`);
 
     const btnData = [
       { key: 'in',  label: '+',  x: 0 },
@@ -388,7 +487,7 @@ function ReasonsBubbleChart({ data, chartRef, darkMode }) {
         style={{
           display: 'block',
           maxWidth: '100%',
-          margin: '0 auto' // center the SVG
+          margin: '0 auto'
         }}
       />
       <div ref={tooltipRef} style={{ position: 'fixed', visibility: 'hidden', pointerEvents: 'none' }} />
@@ -406,7 +505,6 @@ function PreviousResults() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));        // <600px
   const isTablet = useMediaQuery(theme.breakpoints.between('sm','md')); // 600–900
   const chartHeight = isMobile ? 220 : (isTablet ? 260 : 300);
-  const buttonSize = isMobile ? 'small' : 'medium';
 
   // State
   const [serverHistory, setServerHistory] = useState([]);
@@ -455,7 +553,7 @@ function PreviousResults() {
   const spamCount = listForUI.filter(p => p.label === 'spam').length;
   const hamCount = listForUI.filter(p => p.label === 'ham').length;
 
-  // Chart datasets (use numbers for y values)
+  // Chart datasets (numbers for y values)
   const labels = limited.map((_, idx) => `Prediction ${idx + 1}`);
   const avgNum = limited.map(p => Math.round(((p.score ?? 0) * 100) * 10) / 10);
   const rfNum  = limited.map(p => (p?.rf?.score != null)  ? Math.round(p.rf.score  * 1000) / 10 : null);
@@ -615,8 +713,8 @@ function PreviousResults() {
       }}
     >
       <Box>
-        {/* Header + Export */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: { xs: 2, sm: 3 } }}>
+        {/* Header + Export (wrap safe) */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: { xs: 2, sm: 3 }, flexWrap: 'wrap' }}>
           <Typography
             variant="h4"
             gutterBottom
@@ -624,18 +722,15 @@ function PreviousResults() {
           >
             Previous Predictions
           </Typography>
+
           {hasAnyHistory && (
-            <Box>
-              <Tooltip title="Export all records as CSV">
-                <Button variant="contained" size={buttonSize} startIcon={<FileDownloadIcon />} onClick={handleExportClick}>
-                  Export Data
-                </Button>
-              </Tooltip>
-              <Menu anchorEl={anchorEl} open={exportMenuOpen} onClose={handleExportClose}>
-                <MenuItem onClick={() => { exportAllDataAsCSV(); handleExportClose(); }}>
-                  Export All as CSV
-                </MenuItem>
-              </Menu>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <ResponsiveExportButton
+                title="Export all CSV"
+                isMobile={isMobile}
+                outlined={false}
+                onClick={() => { exportAllDataAsCSV(); handleExportClose(); }}
+              />
             </Box>
           )}
         </Box>
@@ -695,8 +790,17 @@ function PreviousResults() {
 
             {/* Bar Chart (latest 20) */}
             <FloatPaper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 } }} darkMode={darkMode}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{ pr: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  mb: 2,
+                  flexWrap: 'wrap'
+                }}
+              >
+                <Box sx={{ pr: 2, minWidth: 240, flex: '1 1 320px' }}>
                   <Typography variant="h6" sx={{ color: colors.textColor }}>
                     Prediction Score History (latest {CHART_LIMIT})
                   </Typography>
@@ -704,37 +808,36 @@ function PreviousResults() {
                     Average spam likelihood (%) for your most recent predictions. Bars are colored by final label
                     (red = spam, green = ham).
                   </Typography>
-                  <Typography variant="body2" sx={{ color: colors.textDisabled, mt: 0.5, fontSize: { xs: '0.85rem', sm: '0.9rem' } }}>
-                    Tip: <strong>Hover</strong> a bar to see the exact percentage. Click <strong>Export</strong> to download a PNG.
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: colors.textDisabled,
+                      mt: 0.5,
+                      fontSize: { xs: '0.85rem', sm: '0.9rem' },
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere'
+                    }}
+                  >
+                    Tip: <strong>Hover</strong> a bar to see the exact percentage. Use the legend to focus. Export as PNG.
                   </Typography>
                 </Box>
 
-                <Tooltip title="Download PNG of this chart">
-                  <Button
-                    size={buttonSize}
-                    startIcon={<FileDownloadIcon />}
-                    onClick={() => {
-                      const canvas = barChartRef.current?.canvas;
-                      if (!canvas) return;
-                      canvas.toBlob((blob) => {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = 'prediction-score-history.png';
-                        link.click();
-                        URL.revokeObjectURL(url);
-                      });
-                    }}
-                    sx={{
-                      color: colors.textColor,
-                      borderColor: colors.borderColor,
-                      '&:hover': { bgcolor: 'transparent', borderColor: colors.textColor }
-                    }}
-                    variant="outlined"
-                  >
-                    Export
-                  </Button>
-                </Tooltip>
+                <ResponsiveExportButton
+                  title="Export PNG"
+                  isMobile={isMobile}
+                  onClick={() => {
+                    const canvas = barChartRef.current?.canvas;
+                    if (!canvas) return;
+                    canvas.toBlob((blob) => {
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = 'prediction-score-history.png';
+                      link.click();
+                      URL.revokeObjectURL(url);
+                    });
+                  }}
+                />
               </Box>
 
               <Box sx={{ height: chartHeight }}>
@@ -744,8 +847,17 @@ function PreviousResults() {
 
             {/* Line Chart (latest 20) */}
             <FloatPaper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 } }} darkMode={darkMode}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{ pr: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  mb: 2,
+                  flexWrap: 'wrap'
+                }}
+              >
+                <Box sx={{ pr: 2, minWidth: 240, flex: '1 1 320px' }}>
                   <Typography variant="h6" sx={{ color: colors.textColor }}>
                     Model Score Comparison Over Time (latest {CHART_LIMIT})
                   </Typography>
@@ -753,38 +865,36 @@ function PreviousResults() {
                     Tracks the <em>Average</em> score and (when available) individual model scores (Random Forest, XGBoost)
                     for each recent prediction.
                   </Typography>
-                  <Typography variant="body2" sx={{ color: colors.textDisabled, mt: 0.5, fontSize: { xs: '0.85rem', sm: '0.9rem' } }}>
-                    Tip: <strong>Hover</strong> to read exact values on each point. Use the legend to focus lines.
-                    Click <strong>Export</strong> to download a PNG.
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: colors.textDisabled,
+                      mt: 0.5,
+                      fontSize: { xs: '0.85rem', sm: '0.9rem' },
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere'
+                    }}
+                  >
+                    Tip: <strong>Hover</strong> to read values. Toggle series in the legend. Export as PNG.
                   </Typography>
                 </Box>
 
-                <Tooltip title="Download PNG of this chart">
-                  <Button
-                    size={buttonSize}
-                    startIcon={<FileDownloadIcon />}
-                    onClick={() => {
-                      const canvas = lineChartRef.current?.canvas;
-                      if (!canvas) return;
-                      canvas.toBlob((blob) => {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = 'model-score-comparison.png';
-                        link.click();
-                        URL.revokeObjectURL(url);
-                      });
-                    }}
-                    sx={{
-                      color: colors.textColor,
-                      borderColor: colors.borderColor,
-                      '&:hover': { bgcolor: 'transparent', borderColor: colors.textColor }
-                    }}
-                    variant="outlined"
-                  >
-                    Export
-                  </Button>
-                </Tooltip>
+                <ResponsiveExportButton
+                  title="Export PNG"
+                  isMobile={isMobile}
+                  onClick={() => {
+                    const canvas = lineChartRef.current?.canvas;
+                    if (!canvas) return;
+                    canvas.toBlob((blob) => {
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = 'model-score-comparison.png';
+                      link.click();
+                      URL.revokeObjectURL(url);
+                    });
+                  }}
+                />
               </Box>
 
               <Box sx={{ height: chartHeight }}>
@@ -794,84 +904,87 @@ function PreviousResults() {
 
             {/* Bubble Chart (latest 20) */}
             <FloatPaper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 } }} darkMode={darkMode}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                <Box sx={{ pr: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  mb: 1,
+                  flexWrap: 'wrap'
+                }}
+              >
+                <Box sx={{ pr: 2, minWidth: 240, flex: '1 1 360px' }}>
                   <Typography variant="h6" sx={{ color: colors.textColor }}>
                     Reasons Bubble Chart (latest {CHART_LIMIT})
                   </Typography>
 
-                  {/* What this is */}
                   <Typography variant="body2" sx={{ color: colors.textSecondary, mt: 0.75, fontSize: { xs: '0.875rem', sm: '0.95rem' } }}>
-                    Aggregated “explain” terms from recent predictions.
-                    Bubble size reflects cumulative importance; color shifts toward red when a term appears more
-                    with spam and towards green with ham.
+                    Aggregated “explain” terms from recent predictions. Bubble size reflects cumulative importance;
+                    color shifts toward red when a term appears more with spam and toward green with ham.
                   </Typography>
 
-                  {/* How to use */}
-                  <Typography variant="body2" sx={{ color: colors.textDisabled, mt: 0.5, fontSize: { xs: '0.85rem', sm: '0.9rem' } }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: colors.textDisabled,
+                      mt: 0.5,
+                      fontSize: { xs: '0.85rem', sm: '0.9rem' },
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere'
+                    }}
+                  >
                     Tip: <strong>Scroll</strong> to zoom, <strong>drag</strong> to pan, <strong>double-click</strong> to reset.
-                    Or use the in-chart <strong>+</strong>/<strong>−</strong>/<strong>⟲</strong> buttons. Hover a bubble to see details.
+                    Use the in-chart <strong>+</strong>/<strong>−</strong>/<strong>⟲</strong> buttons. Hover a bubble for details.
                   </Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Tooltip title="Export as PNG">
-                    <Button
-                      size={buttonSize}
-                      startIcon={<FileDownloadIcon />}
-                      onClick={() => {
-                        const svgElement = bubbleChartRef.current;
-                        if (!svgElement) return;
-                        const svgData = new XMLSerializer().serializeToString(svgElement);
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const img = new Image();
-                        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-                        const url = URL.createObjectURL(svgBlob);
-                        img.onload = () => {
-                          canvas.width = img.width; canvas.height = img.height;
-                          ctx.fillStyle = colors.paper_bgcolor || (darkMode ? '#0b0f19' : '#fff');
-                          ctx.fillRect(0, 0, canvas.width, canvas.height);
-                          ctx.drawImage(img, 0, 0);
-                          canvas.toBlob((blob) => {
-                            const pngUrl = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = pngUrl; link.download = 'reasons-bubble-chart.png';
-                            link.click();
-                            URL.revokeObjectURL(pngUrl);
-                          });
-                          URL.revokeObjectURL(url);
-                        };
-                        img.src = url;
-                      }}
-                      sx={{ color: colors.textColor, borderColor: colors.borderColor }}
-                      variant="outlined"
-                    >
-                      PNG
-                    </Button>
-                  </Tooltip>
-                  <Tooltip title="Export as SVG">
-                    <Button
-                      size={buttonSize}
-                      startIcon={<FileDownloadIcon />}
-                      onClick={() => {
-                        const svgElement = bubbleChartRef.current;
-                        if (!svgElement) return;
-                        const svgData = new XMLSerializer().serializeToString(svgElement);
-                        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = 'reasons-bubble-chart.svg';
-                        link.click();
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <ResponsiveExportButton
+                    title="Export PNG"
+                    isMobile={isMobile}
+                    onClick={() => {
+                      const svgElement = bubbleChartRef.current;
+                      if (!svgElement) return;
+                      const svgData = new XMLSerializer().serializeToString(svgElement);
+                      const canvas = document.createElement('canvas');
+                      const ctx = canvas.getContext('2d');
+                      const img = new Image();
+                      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                      const url = URL.createObjectURL(svgBlob);
+                      img.onload = () => {
+                        canvas.width = img.width; canvas.height = img.height;
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob((blob) => {
+                          const pngUrl = URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = pngUrl; link.download = 'reasons-bubble-chart.png';
+                          link.click();
+                          URL.revokeObjectURL(pngUrl);
+                        });
                         URL.revokeObjectURL(url);
-                      }}
-                      sx={{ color: colors.textColor, borderColor: colors.borderColor }}
-                      variant="outlined"
-                    >
-                      SVG
-                    </Button>
-                  </Tooltip>
+                      };
+                      img.src = url;
+                    }}
+                  />
+                  <ResponsiveExportButton
+                    title="Export SVG"
+                    isMobile={isMobile}
+                    onClick={() => {
+                      const svgElement = bubbleChartRef.current;
+                      if (!svgElement) return;
+                      const svgData = new XMLSerializer().serializeToString(svgElement);
+                      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = 'reasons-bubble-chart.svg';
+                      link.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  />
                 </Box>
               </Box>
 
@@ -911,10 +1024,29 @@ function PreviousResults() {
                   sx={{
                     mb: 2,
                     borderLeft: 4,
-                    borderColor: prediction.label === 'spam' ? 'error.main' : 'success.main'
+                    borderColor: prediction.label === 'spam' ? 'error.main' : 'success.main',
+                    position: 'relative'
                   }}
                 >
-                  <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                  {/* Delete fixed at top-right with custom tooltip */}
+                  <DeleteButtonWithHint
+                    disabled={!prediction.id || loading}
+                    onClick={async () => {
+                      if (!prediction.id) {
+                        openSnack('This item has no server id; cannot delete via API.', 'warning');
+                        return;
+                      }
+                      try {
+                        await apiDeleteHistory(prediction.id);
+                        openSnack('Deleted successfully', 'success');
+                        await loadServerHistory();
+                      } catch (e) {
+                        openSnack(String(e?.message || e), 'error');
+                      }
+                    }}
+                  />
+
+                  <CardContent sx={{ p: { xs: 1.5, sm: 2 }, pr: { xs: 5.5, sm: 7 } }}>
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={2}>
                         <Typography variant="body2" sx={{ color: colors.textSecondary }}>
@@ -963,7 +1095,7 @@ function PreviousResults() {
                         </Typography>
                       </Grid>
 
-                      {/* Body + Delete */}
+                      {/* Email text */}
                       <Grid item xs={12}>
                         <Box sx={{
                           mt: 1,
@@ -972,62 +1104,29 @@ function PreviousResults() {
                           borderRadius: 1,
                           border: 1,
                           borderColor: colors.borderColor,
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          gap: 1
+                          display: 'block'
                         }}>
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            {prediction.text && (
-                              <>
-                                <Typography variant="caption" sx={{ color: colors.textSecondary, display: 'block', mb: 0.5 }}>
-                                  Email Text:
-                                </Typography>
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    color: colors.textColor,
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-word',
-                                    fontSize: '0.875rem',
-                                    maxHeight: 80,
-                                    overflow: 'auto'
-                                  }}
-                                  title={prediction.text}
-                                >
-                                  {prediction.text.length > 200 ? prediction.text.substring(0, 200) + '…' : prediction.text}
-                                </Typography>
-                              </>
-                            )}
-                          </Box>
-
-                          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Tooltip title={prediction.id ? 'Delete this record from server history' : 'Cannot delete: no server id'}>
-                              <span>
-                                <IconButton
-                                  aria-label="delete-record"
-                                  size="small"
-                                  color="error"
-                                  disabled={!prediction.id || loading}
-                                  onClick={async () => {
-                                    if (!prediction.id) {
-                                      openSnack('This item has no server id; cannot delete via API.', 'warning');
-                                      return;
-                                    }
-                                    try {
-                                      await apiDeleteHistory(prediction.id);
-                                      openSnack('Deleted successfully', 'success');
-                                      await loadServerHistory();
-                                    } catch (e) {
-                                      openSnack(String(e?.message || e), 'error');
-                                    }
-                                  }}
-                                >
-                                  <DeleteOutline />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                          </Box>
+                          {prediction.text && (
+                            <>
+                              <Typography variant="caption" sx={{ color: colors.textSecondary, display: 'block', mb: 0.5 }}>
+                                Email Text:
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: colors.textColor,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                  fontSize: '0.875rem',
+                                  maxHeight: 80,
+                                  overflow: 'auto'
+                                }}
+                                title={prediction.text}
+                              >
+                                {prediction.text.length > 200 ? prediction.text.substring(0, 200) + '…' : prediction.text}
+                              </Typography>
+                            </>
+                          )}
                         </Box>
                       </Grid>
                     </Grid>

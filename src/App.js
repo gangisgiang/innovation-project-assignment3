@@ -1,16 +1,14 @@
 // src/App.js
 import React, { useState, useContext, useRef, useEffect } from 'react';
 import {
-  Typography, Container, Button, Box, TextField, CircularProgress, Chip, Switch, Alert, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid, Card, CardContent, LinearProgress, Snackbar
+  Typography, Container, Button, Box, TextField, CircularProgress, Chip, Switch, Alert,
+  Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid,
+  Card, CardContent, LinearProgress, Snackbar
 } from '@mui/material';
 import useMediaQuery from '@mui/material/useMediaQuery';
-
-import {
-  Assessment as AssessmentIcon,
-  Mail as MailIcon,
-} from '@mui/icons-material';
-
+import { Assessment as AssessmentIcon, Mail as MailIcon } from '@mui/icons-material';
 import Plot from 'react-plotly.js';
+
 import { ThemeContext } from './background';
 import { PredictionContext } from './PredictionProvider';
 import { ScoreDistributionBarChart, ScatterPlotChart, SpamHamPieChart } from './BatchCharts';
@@ -24,7 +22,6 @@ const MAX_TEXT_LEN = 10000;
 const MAX_BATCH = 200;
 
 function MainHeadings({ batchMode, colors }) {
-  // Responsive: adjust heading sizes by screen width
   const isMdUp = useMediaQuery('(min-width:900px)');
   return (
     <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
@@ -39,6 +36,12 @@ function MainHeadings({ batchMode, colors }) {
     </Box>
   );
 }
+
+// ---- Plotly axis theme helpers ----
+const axisLine = (dark) => (dark ? '#ffffff' : '#333333');
+const gridLine = (dark) => (dark ? 'rgba(255,255,255,0.18)' : '#e0e0e0');
+const paperBg = (dark) => (dark ? '#0f0f0f' : '#ffffff');
+const plotBg = (dark) => (dark ? '#0f0f0f' : '#ffffff');
 
 function BasicSingleResults({ apiResult, darkMode, colors }) {
   if (!apiResult || apiResult.error) return null;
@@ -71,7 +74,7 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
               </Typography>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2, bgcolor: darkMode ? 'grey.700' : 'background.paper' }}>
+              <Paper sx={{ p: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
                 <Typography variant="subtitle2" sx={{ color: colors.textSecondary }} gutterBottom>
                   Recommended Action
                 </Typography>
@@ -90,28 +93,33 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
         </CardContent>
       </Card>
 
-      {apiResult.reasons && apiResult.reasons.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      {apiResult.reasons?.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Analysis Reasons</Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {apiResult.reasons.map((reason, index) => (
-              <Chip
-                key={index}
-                label={reason.replace(/_/g, ' ')}
-                sx={{ textTransform: 'capitalize' }}
-              />
+              <Chip key={index} label={reason.replace(/_/g, ' ')} sx={{ textTransform: 'capitalize' }} />
             ))}
           </Box>
         </Paper>
       )}
 
       {apiResult.ensemble && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#0f0f0f' : 'background.paper' }}>
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Model Ensemble Analysis</Typography>
           <Grid container spacing={2} sx={{ mb: 2 }}>
             {Object.entries(apiResult.ensemble).map(([modelName, modelData]) => (
               <Grid item xs={12} md={6} key={modelName}>
-                <Card variant="outlined">
+                <Card
+                  variant="outlined"
+                  sx={{
+                    bgcolor: darkMode ? '#121212' : 'background.paper',
+                    borderColor: darkMode ? 'rgba(255,255,255,0.18)' : 'divider',
+                    boxShadow: darkMode ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(0,0,0,0.08)',
+                    '& .MuiTypography-root': { color: colors.textColor },
+                    '& .MuiChip-label': { color: '#fff' },
+                  }}
+                >
                   <CardContent>
                     <Typography variant="subtitle2" sx={{ color: colors.textSecondary }} gutterBottom>
                       {modelName.toUpperCase()}
@@ -133,35 +141,37 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
           </Grid>
 
           <Plot
-            data={[
-              {
-                type: 'bar',
-                x: Object.keys(apiResult.ensemble),
-                y: Object.values(apiResult.ensemble).map(m => m.score),
-                marker: {
-                  color: Object.values(apiResult.ensemble).map(m =>
-                    m.label === 'ham' ? hamColor : spamColor
-                  )
-                },
-                text: Object.values(apiResult.ensemble).map(m => `${(m.score * 100).toFixed(1)}%`),
-                textposition: 'outside',
-              }
-            ]}
+            data={[{
+              type: 'bar',
+              x: Object.keys(apiResult.ensemble),
+              y: Object.values(apiResult.ensemble).map(m => m.score),
+              marker: { color: Object.values(apiResult.ensemble).map(m => (m.label === 'ham' ? hamColor : spamColor)) },
+              text: Object.values(apiResult.ensemble).map(m => `${(m.score * 100).toFixed(1)}%`),
+              textposition: 'outside',
+            }]}
             layout={{
               width: window.innerWidth < 768 ? 350 : 500,
               height: 300,
               title: { text: 'Model Score Comparison', font: { color: colors.textColor } },
-              paper_bgcolor: colors.paper_bgcolor,
-              plot_bgcolor: colors.plot_bgcolor,
+              paper_bgcolor: paperBg(darkMode),
+              plot_bgcolor: plotBg(darkMode),
               font: { color: colors.textColor },
               yaxis: {
-                range: [0, 1], dtick: 0.1,
-                title: { text: 'Score', font: { color: colors.textColor } },
-                tickfont: { color: colors.textColor }, gridcolor: colors.gridColor
+                range: [0, 1],
+                dtick: 0.1,
+                title: { text: 'Score' },
+                tickfont: { color: axisLine(darkMode) },
+                gridcolor: gridLine(darkMode),
+                showline: true,
+                linecolor: axisLine(darkMode),
+                zerolinecolor: gridLine(darkMode),
               },
               xaxis: {
-                title: { text: 'Model', font: { color: colors.textColor } },
-                tickfont: { color: colors.textColor }
+                title: { text: 'Model' },
+                tickfont: { color: axisLine(darkMode) },
+                showline: true,
+                linecolor: axisLine(darkMode),
+                gridcolor: gridLine(darkMode),
               },
               margin: { l: 50, r: 50, t: 50, b: 50 }
             }}
@@ -170,8 +180,8 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
         </Paper>
       )}
 
-      {apiResult.explain && apiResult.explain.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      {apiResult.explain?.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Key Spam Indicators</Typography>
           <Typography variant="body2" sx={{ mb: 2, color: colors.textSecondary }}>
             Terms and features that influenced the classification
@@ -192,7 +202,7 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
       )}
 
       {apiResult.anomaly && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Anomaly Detection</Typography>
           <Grid container spacing={2}>
             <Grid item xs={6}>
@@ -206,7 +216,7 @@ function BasicSingleResults({ apiResult, darkMode, colors }) {
                 variant="determinate"
                 value={apiResult.anomaly.ood_score * 100}
                 color={apiResult.anomaly.ood_score > 0.7 ? 'error' : 'warning'}
-                sx={{ height: 6, borderRadius: 1, mt: 1 }}
+                sx={{ height: 6, borderRadius: 1 }}
               />
             </Grid>
           </Grid>
@@ -231,7 +241,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={4}>
-          <Card sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+          <Card sx={{ bgcolor: darkMode ? '#121212' : 'background.paper' }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography sx={{ color: colors.textSecondary }} variant="caption">Total</Typography>
               <Typography variant="h5" sx={{ color: colors.textColor }}>{results.length}</Typography>
@@ -256,7 +266,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
         </Grid>
       </Grid>
 
-      <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#0f0f0f' : 'background.paper' }}>
         <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Batch Prediction Distribution</Typography>
         <Plot
           data={[{
@@ -271,17 +281,23 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
             width: window.innerWidth < 768 ? 350 : 500,
             height: 300,
             title: { text: 'Batch Prediction Distribution', font: { color: colors.textColor } },
-            paper_bgcolor: colors.paper_bgcolor,
-            plot_bgcolor: colors.plot_bgcolor,
+            paper_bgcolor: paperBg(darkMode),
+            plot_bgcolor: plotBg(darkMode),
             font: { color: colors.textColor },
             yaxis: {
-              title: { text: 'Count', font: { color: colors.textColor } },
-              tickfont: { color: colors.textColor },
-              gridcolor: colors.gridColor
+              title: { text: 'Count' },
+              tickfont: { color: axisLine(darkMode) },
+              gridcolor: gridLine(darkMode),
+              showline: true,
+              linecolor: axisLine(darkMode),
+              zerolinecolor: gridLine(darkMode),
             },
             xaxis: {
-              title: { text: 'Label', font: { color: colors.textColor } },
-              tickfont: { color: colors.textColor }
+              title: { text: 'Label' },
+              tickfont: { color: axisLine(darkMode) },
+              showline: true,
+              linecolor: axisLine(darkMode),
+              gridcolor: gridLine(darkMode),
             },
             margin: { l: 50, r: 50, t: 50, b: 50 }
           }}
@@ -289,14 +305,14 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
         />
       </Paper>
 
-      <Paper sx={{ p: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      <Paper sx={{ p: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
         <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Individual Results</Typography>
         {results.map((result, idx) => (
           <Card
             key={idx}
             sx={{
               mb: 2,
-              bgcolor: darkMode ? 'grey.900' : 'grey.50',
+              bgcolor: darkMode ? '#0b0b0b' : 'grey.50',
               borderLeft: 4,
               borderColor: result.label === 'spam' ? 'error.main' : 'success.main'
             }}
@@ -312,7 +328,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
                     label={`${(result.score * 100).toFixed(1)}%`}
                     variant="outlined"
                     size="small"
-                    sx={{ bgcolor: darkMode ? 'grey.700' : 'background.paper', color: colors.textColor, borderColor: colors.borderColor }}
+                    sx={{ bgcolor: darkMode ? '#121212' : 'background.paper', color: colors.textColor, borderColor: colors.borderColor }}
                   />
                 </Box>
               </Box>
@@ -323,7 +339,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
                   size="small"
                   sx={{
                     textTransform: 'capitalize',
-                    bgcolor: darkMode ? 'grey.700' : 'background.paper',
+                    bgcolor: darkMode ? '#121212' : 'background.paper',
                     color: colors.textColor,
                     borderColor: colors.borderColor,
                     border: 1
@@ -331,7 +347,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
                 />
               </Typography>
 
-              {result.reasons && result.reasons.length > 0 && (
+              {result.reasons?.length > 0 && (
                 <Box sx={{ mt: 1 }}>
                   <Typography variant="caption" sx={{ color: colors.textSecondary }}>Reasons:</Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
@@ -344,7 +360,7 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
                         sx={{
                           fontSize: '0.7rem',
                           height: 20,
-                          bgcolor: darkMode ? 'grey.700' : 'background.paper',
+                          bgcolor: darkMode ? '#121212' : 'background.paper',
                           color: colors.textColor,
                           borderColor: colors.borderColor
                         }}
@@ -363,7 +379,6 @@ function BasicBatchResults({ batchAnalysis, darkMode, colors }) {
 
 function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
   if (!batchAnalysis || !batchAnalysis.overview) return null;
-
   const { overview, score_distribution, model_agreement, actions, top_spam_indicators, indexed_details } = batchAnalysis;
 
   return (
@@ -374,7 +389,7 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+          <Card sx={{ bgcolor: darkMode ? '#121212' : 'background.paper' }}>
             <CardContent>
               <Typography sx={{ color: colors.textSecondary }} gutterBottom>Total Messages</Typography>
               <Typography variant="h4" sx={{ color: colors.textColor }}>{overview.total_messages}</Typography>
@@ -404,7 +419,7 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
           </Card>
         </Grid>
         <Grid item xs={6} md={3}>
-          <Card sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+          <Card sx={{ bgcolor: darkMode ? '#121212' : 'background.paper' }}>
             <CardContent>
               <Typography sx={{ color: colors.textSecondary }} gutterBottom>Avg Score</Typography>
               <Typography variant="h4" sx={{ color: colors.textColor }}>{overview.avg_score.toFixed(2)}</Typography>
@@ -413,25 +428,11 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
         </Grid>
       </Grid>
 
-      {score_distribution && (
-        <Box sx={{ mb: 3 }}>
-          <ScoreDistributionBarChart distributionData={score_distribution} darkMode={darkMode} />
-        </Box>
-      )}
+      {score_distribution && <Box sx={{ mb: 3 }}><ScoreDistributionBarChart distributionData={score_distribution} darkMode={darkMode} /></Box>}
+      {indexed_details && <Box sx={{ mb: 3 }}><ScatterPlotChart data={indexed_details} darkMode={darkMode} /></Box>}
+      {overview && <Box sx={{ mb: 3 }}><SpamHamPieChart overview={overview} darkMode={darkMode} /></Box>}
 
-      {indexed_details && (
-        <Box sx={{ mb: 3 }}>
-          <ScatterPlotChart data={indexed_details} darkMode={darkMode} />
-        </Box>
-      )}
-
-      {overview && (
-        <Box sx={{ mb: 3 }}>
-          <SpamHamPieChart overview={overview} darkMode={darkMode} />
-        </Box>
-      )}
-
-      <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
         <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Model Agreement</Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
           <Box sx={{ flex: 1 }}>
@@ -451,7 +452,7 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
         />
       </Paper>
 
-      <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
         <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Recommended Actions</Typography>
         <Grid container spacing={2}>
           {Object.entries(actions).map(([action, count]) => (
@@ -473,8 +474,8 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
         </Grid>
       </Paper>
 
-      {top_spam_indicators && top_spam_indicators.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      {top_spam_indicators?.length > 0 && (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Top Spam Indicators</Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {top_spam_indicators.slice(0, 10).map((indicator, idx) => (
@@ -484,10 +485,18 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
         </Paper>
       )}
 
-      {indexed_details && indexed_details.length > 0 && (
-        <Paper sx={{ p: 2, mt: 3, bgcolor: darkMode ? 'grey.800' : 'background.paper' }}>
+      {indexed_details?.length > 0 && (
+        <Paper sx={{ p: 2, mt: 3, bgcolor: darkMode ? '#121212' : 'background.paper' }}>
           <Typography variant="h6" gutterBottom sx={{ color: colors.textColor }}>Detailed Results</Typography>
-          <TableContainer component={Paper} sx={{ bgcolor: darkMode ? 'grey.900' : 'background.default' }}>
+          <TableContainer component={Paper} sx={{
+            bgcolor: darkMode ? '#0b0b0b' : 'background.default',
+            ...(darkMode && {
+              '& .MuiTableCell-root': { color: '#fff' },
+              '& .MuiTableHead-root .MuiTableCell-root': { color: '#fff', fontWeight: 600 },
+              '& .MuiTableBody-root .MuiTableCell-root': { color: '#fff' },
+              '& .MuiTableCell-root, & .MuiTableRow-root': { borderColor: 'rgba(255,255,255,0.12)' },
+            }),
+          }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -500,14 +509,9 @@ function BatchAnalysisResults({ batchAnalysis, darkMode, colors }) {
               </TableHead>
               <TableBody>
                 {indexed_details.map((item, idx) => (
-                  <TableRow
-                    key={idx}
-                    sx={{ bgcolor: item.label === 'spam' ? 'error.light' : item.label === 'ham' ? 'success.light' : 'inherit' }}
-                  >
+                  <TableRow key={idx} sx={{ bgcolor: item.label === 'spam' ? 'error.light' : item.label === 'ham' ? 'success.light' : 'inherit' }}>
                     <TableCell>{idx + 1}</TableCell>
-                    <TableCell sx={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.text}
-                    </TableCell>
+                    <TableCell sx={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.text}</TableCell>
                     <TableCell>{item.label}</TableCell>
                     <TableCell>{(item.score * 100).toFixed(1)}%</TableCell>
                     <TableCell sx={{ textTransform: 'capitalize' }}>{item.action}</TableCell>
@@ -535,27 +539,24 @@ function App() {
 
   // Batch mode
   const [batchMode, setBatchMode] = useState(false);
-  const [batchAnalyzeMode, setBatchAnalyzeMode] = useState(false); // false = basic, true = analyze
+  const [batchAnalyzeMode, setBatchAnalyzeMode] = useState(false);
   const [batchInput, setBatchInput] = useState('');
   const [batchAnalysis, setBatchAnalysis] = useState(null);
   const [batchLoading, setBatchLoading] = useState(false);
 
-  // Resizable split between INPUT (left) and RESULTS (right)
-  const [leftWidth, setLeftWidth] = useState(50); // percentage
+  // Splitter
+  const [leftWidth, setLeftWidth] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef(null);
   const dividerWidth = 8;
 
-  // Snackbar state (global)
+  // Snackbar
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
-  const [snackSeverity, setSnackSeverity] = useState('error'); // 'error' | 'warning' | 'info' | 'success'
+  const [snackSeverity, setSnackSeverity] = useState('error');
   const openSnack = (msg, severity = 'error') => { setSnackMsg(msg); setSnackSeverity(severity); setSnackOpen(true); };
 
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    e.preventDefault();
-  };
+  const handleMouseDown = (e) => { setIsDragging(true); e.preventDefault(); };
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -603,7 +604,7 @@ function App() {
     };
   };
 
-  // Client-side validation helpers
+  // Validation
   const validateSingleText = (txt) => {
     if (!txt || !txt.trim()) return 'Please enter some email text.';
     if (txt.length > MAX_TEXT_LEN) return `Email text is too long (>${MAX_TEXT_LEN} characters).`;
@@ -623,7 +624,6 @@ function App() {
   };
 
   const handleBatchAnalyze = async () => {
-    // Validation before API — giống Single: dùng snackbar + KHÔNG disable nút
     const vErr = validateBatch(batchInput);
     if (vErr) { openSnack(vErr, 'warning'); setSplitVisible(false); return; }
 
@@ -677,7 +677,7 @@ function App() {
         <Container maxWidth="xl">
           <MainHeadings batchMode={batchMode} colors={colors} />
 
-          {/* Splitter container: LEFT = INPUT; RIGHT = RESULTS */}
+          {/* Splitter container */}
           <Box
             ref={containerRef}
             sx={{
@@ -689,7 +689,7 @@ function App() {
               userSelect: isDragging ? 'none' : 'auto'
             }}
           >
-            {/* LEFT PANE: INPUT */}
+            {/* LEFT PANE */}
             <Box
               sx={{
                 order: 0,
@@ -764,12 +764,7 @@ function App() {
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'block', mt: 2 }}>
-                    <Button
-                      variant="contained"
-                      onClick={handleBatchAnalyze}
-                      // KHÔNG disable vì validation dùng Snackbar
-                      disabled={batchLoading}
-                    >
+                    <Button variant="contained" onClick={handleBatchAnalyze} disabled={batchLoading}>
                       {batchLoading ? 'Analyzing...' : 'Predict'}
                     </Button>
                   </Box>
@@ -808,7 +803,6 @@ function App() {
                     <Button
                       variant="contained"
                       onClick={async () => {
-                        // Validation before API — Snackbar + KHÔNG disable
                         const vErr = validateSingleText(apiInput);
                         if (vErr) { openSnack(vErr, 'warning'); setSplitVisible(false); return; }
 
@@ -839,7 +833,7 @@ function App() {
                         }
                       }}
                       aria-controls="split-right-pane"
-                      disabled={apiLoading} // chỉ disable khi đang chạy để tránh double-submit
+                      disabled={apiLoading}
                     >
                       Predict
                     </Button>
@@ -853,7 +847,7 @@ function App() {
               )}
             </Box>
 
-            {/* DIVIDER (desktop only) */}
+            {/* DIVIDER */}
             <Box
               onMouseDown={handleMouseDown}
               sx={{
@@ -879,8 +873,9 @@ function App() {
               }}
             />
 
-            {/* RIGHT PANE: RESULTS */}
+            {/* RIGHT PANE */}
             <Box
+              id="split-right-pane"
               sx={{
                 order: 0,
                 display: { xs: splitVisible ? 'block' : 'none', md: 'block' },
@@ -888,9 +883,20 @@ function App() {
                 p: { xs: 1.5, md: 2 },
                 maxHeight: { md: '80vh' },
                 overflowY: 'auto',
-                transition: isDragging ? 'none' : 'width 0.1s ease'
+                transition: isDragging ? 'none' : 'width 0.1s ease',
+
+                // Force trắng toàn bộ text trong RESULTS khi dark mode
+                ...(darkMode && {
+                  color: '#fff',
+                  '& .MuiTypography-root, & .MuiTableCell-root, & .MuiButton-root, & .MuiSvgIcon-root, & .MuiAlert-message': {
+                    color: '#fff',
+                  },
+                  '& .MuiChip-label': { color: '#fff' },
+                  '& .MuiTableCell-root, & .MuiTableRow-root': {
+                    borderColor: 'rgba(255,255,255,0.12)',
+                  },
+                }),
               }}
-              id="split-right-pane"
             >
               {batchMode ? (
                 batchLoading ? (
@@ -953,7 +959,7 @@ function App() {
         </Container>
       </Box>
 
-      {/* Global Snackbar for validation/API errors */}
+      {/* Global Snackbar */}
       <Snackbar
         open={snackOpen}
         autoHideDuration={5000}
