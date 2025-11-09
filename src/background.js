@@ -100,29 +100,92 @@ export default function Background({ children }) {
       borderColor: darkMode ? 'rgba(255,255,255,0.23)' : 'rgba(0,0,0,0.23)',
       borderHover: darkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
       gridColor: darkMode ? 'rgba(255,255,255,0.08)' : theme.palette.divider,
-      plot_bgcolor: darkMode ? theme.palette.grey[900] : theme.palette.background.default
+      plot_bgcolor: darkMode ? theme.palette.grey[900] : theme.palette.background.default,
+      backgroundColor: darkMode ? '#000' : 'transparent'
     }
   };
 
-  // This is the basic outline for the website, every page uses this structure and then has the main part generated separately
   return (
     <ThemeContext.Provider value={contextValue}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: darkMode ? 'grey.900' : 'background.default', color: darkMode ? 'common.white' : 'common.black' }}>
-        <AppBar position="static">
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '100vh', 
+        bgcolor: darkMode ? '#000' : 'background.default', 
+        color: darkMode ? 'common.white' : 'common.black',
+        transition: 'background-color 0.3s ease'
+      }}>
+        <AppBar position="static" sx={{
+          bgcolor: darkMode ? '#0a0a0a' : 'primary.main',
+          boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.5)' : undefined
+        }}>
           <Toolbar>
-            <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleDrawer(true)}>
+            <IconButton 
+              edge="start" 
+              color="inherit" 
+              aria-label="menu" 
+              onClick={toggleDrawer(true)}
+              sx={{
+                '&:hover': {
+                  bgcolor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.1)'
+                }
+              }}
+            >
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               SPECTER - Spam and Malware Detection System
             </Typography>
-            <Button color="inherit" onClick={handleDialogOpen}>Contact</Button>
+            <Button 
+              color="inherit" 
+              onClick={handleDialogOpen}
+              sx={{
+                '&:hover': {
+                  bgcolor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.1)'
+                }
+              }}
+            >
+              Contact
+            </Button>
           </Toolbar>
         </AppBar>
+        
         {children}
-        <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
-          <Box sx={{ width: 250 }} role="presentation" onClick={toggleDrawer(false)} onKeyDown={toggleDrawer(false)}>
-            <List>
+        
+        <Drawer 
+          anchor="left" 
+          open={drawerOpen} 
+          onClose={toggleDrawer(false)}
+          PaperProps={{
+            sx: {
+              bgcolor: darkMode ? '#0f0f0f' : 'background.paper',
+              color: darkMode ? '#fff' : 'text.primary',
+              backgroundImage: 'none',
+              borderRight: darkMode ? '1px solid rgba(255,255,255,0.12)' : undefined,
+              transition: 'background-color 0.3s ease'
+            }
+          }}
+        >
+          <Box 
+            sx={{ width: 250 }} 
+            role="presentation"
+          >
+            {/* Drawer Header */}
+            <Box sx={{
+              p: 2,
+              bgcolor: darkMode ? '#0a0a0a' : 'primary.main',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <MenuIcon />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Navigation
+              </Typography>
+            </Box>
+
+            <List onClick={toggleDrawer(false)} onKeyDown={toggleDrawer(false)}>
               {[
                 { text: 'Home', path: '/', icon: <HomeIcon /> },
                 { text: 'About', path: '/about', icon: <InfoIcon /> },
@@ -135,29 +198,71 @@ export default function Background({ children }) {
                   onClick={() => {
                     if (item.path !== '#') {
                       navigate(item.path);
-                      toggleDrawer(false)();
                     } else {
                       handleDialogOpen();
-                      toggleDrawer(false)();
                     }
                   }}
+                  sx={{
+                    '&:hover': {
+                      bgcolor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'
+                    },
+                    borderRadius: '8px',
+                    mx: 1,
+                    mb: 0.5
+                  }}
                 >
-                  <ListItemIcon>
+                  <ListItemIcon sx={{ 
+                    color: darkMode ? '#fff' : 'inherit',
+                    minWidth: 40
+                  }}>
                     {item.icon}
                   </ListItemIcon>
-                  <ListItemText primary={item.text} />
+                  <ListItemText 
+                    primary={item.text}
+                    primaryTypographyProps={{
+                      sx: { 
+                        color: darkMode ? '#fff' : 'inherit',
+                        fontWeight: 500
+                      }
+                    }}
+                  />
                 </ListItem>
               ))}
             </List>
-            <Divider />
+            
+            <Divider sx={{ 
+              my: 1,
+              borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'
+            }} />
+            
             <List>
-              <ListItem>
-                <ListItemText primary="Dark Mode" />
-                <Switch checked={darkMode} onChange={toggleDarkMode} />
+              <ListItem sx={{ px: 2 }}>
+                <ListItemText 
+                  primary="Dark Mode"
+                  primaryTypographyProps={{
+                    sx: { 
+                      color: darkMode ? '#fff' : 'inherit',
+                      fontWeight: 500
+                    }
+                  }}
+                />
+                <Switch 
+                  checked={darkMode} 
+                  onChange={toggleDarkMode}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: darkMode ? '#90caf9' : 'primary.main',
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: darkMode ? '#90caf9' : 'primary.main',
+                    }
+                  }}
+                />
               </ListItem>
             </List>
           </Box>
         </Drawer>
+        
         <Snackbar
           open={snackbarOpen}
           autoHideDuration={6000}
@@ -175,8 +280,9 @@ export default function Background({ children }) {
             severity={snackbarSeverity}
             sx={{
               width: '100%',
-              bgcolor: darkMode ? 'grey.900' : 'background.paper',
-              color: darkMode ? 'common.white' : 'common.black',
+              bgcolor: darkMode ? '#1a1a1a' : 'background.paper',
+              color: darkMode ? '#fff' : 'common.black',
+              border: darkMode ? '1px solid rgba(255,255,255,0.12)' : undefined,
               '& .MuiAlert-icon': {
                 color: darkMode ? 'primary.light' : 'primary.main'
               }
@@ -185,11 +291,23 @@ export default function Background({ children }) {
             {snackbarMessage}
           </Alert>
         </Snackbar>
-        {/* This is the contact form, as it is a WIP the submit button is not functional yet it triggers an alert */}
-        <Dialog open={dialogOpen} onClose={handleDialogClose}>
-          <DialogTitle>Contact Us</DialogTitle>
+        
+        <Dialog 
+          open={dialogOpen} 
+          onClose={handleDialogClose}
+          PaperProps={{
+            sx: {
+              bgcolor: darkMode ? '#0f0f0f' : 'background.paper',
+              color: darkMode ? '#fff' : 'text.primary',
+              backgroundImage: 'none'
+            }
+          }}
+        >
+          <DialogTitle sx={{ color: darkMode ? '#fff' : 'inherit' }}>
+            Contact Us
+          </DialogTitle>
           <DialogContent>
-            <DialogContentText>
+            <DialogContentText sx={{ color: darkMode ? 'rgba(255,255,255,0.7)' : 'text.secondary' }}>
               Fill out this form to get in touch with us.
             </DialogContentText>
             <TextField
@@ -200,6 +318,12 @@ export default function Background({ children }) {
               type="text"
               fullWidth
               variant="standard"
+              sx={{
+                '& .MuiInputBase-input': { color: darkMode ? '#fff' : 'inherit' },
+                '& .MuiInputLabel-root': { color: darkMode ? 'rgba(255,255,255,0.7)' : 'inherit' },
+                '& .MuiInput-underline:before': { borderBottomColor: darkMode ? 'rgba(255,255,255,0.42)' : 'inherit' },
+                '& .MuiInput-underline:hover:not(.Mui-disabled):before': { borderBottomColor: darkMode ? 'rgba(255,255,255,0.87)' : 'inherit' }
+              }}
             />
             <TextField
               margin="dense"
@@ -208,11 +332,25 @@ export default function Background({ children }) {
               type="email"
               fullWidth
               variant="standard"
+              sx={{
+                '& .MuiInputBase-input': { color: darkMode ? '#fff' : 'inherit' },
+                '& .MuiInputLabel-root': { color: darkMode ? 'rgba(255,255,255,0.7)' : 'inherit' },
+                '& .MuiInput-underline:before': { borderBottomColor: darkMode ? 'rgba(255,255,255,0.42)' : 'inherit' },
+                '& .MuiInput-underline:hover:not(.Mui-disabled):before': { borderBottomColor: darkMode ? 'rgba(255,255,255,0.87)' : 'inherit' }
+              }}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleDialogClose}>Cancel</Button>
-            <Button onClick={handleSubmit}>
+            <Button 
+              onClick={handleDialogClose}
+              sx={{ color: darkMode ? '#90caf9' : 'primary.main' }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit}
+              sx={{ color: darkMode ? '#90caf9' : 'primary.main' }}
+            >
               Submit
             </Button>
           </DialogActions>
