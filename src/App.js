@@ -19,7 +19,7 @@ const spamColor = 'rgba(244,67,54,0.8)'; // red
 
 // Validation limits
 const MAX_TEXT_LEN = 10000;
-const MAX_BATCH = 200;
+const MAX_BATCH = 500;
 
 function MainHeadings({ batchMode, colors }) {
   const isMdUp = useMediaQuery('(min-width:900px)');
