@@ -70,8 +70,18 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
-
+    return {
+        "status": "ok",
+        "message": "Spam Detection API is running",
+        "timestamp": "2025-11-09T18:24:00Z",
+        "available_models": ["xgboost", "random_forest"],
+        "endpoints": {
+            "predict": "/predict",
+            "batch_predict": "/predict-batch",
+            "model_info": "/model/info",
+            "history": "/history"
+        }
+    }
 
 # ========== Include Routers ==========
 app.include_router(predict_router, tags=["Prediction"])

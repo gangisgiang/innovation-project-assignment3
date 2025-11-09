@@ -20,9 +20,9 @@ root.render(
         <Background>
           <PredictionProvider>
             <Routes>
-              <Route path="/" element={<App />} />
               <Route path="/about" element={<About />} />
               <Route path="/previous-results" element={<PreviousResults />} />
+              <Route path="/" element={<App />} />
             </Routes>
           </PredictionProvider>
         </Background>
